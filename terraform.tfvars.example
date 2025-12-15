@@ -1,0 +1,31 @@
+# Copy this to terraform.tfvars and fill in your real values
+# Never commit the real file!
+
+project_name       = "my-django-app"            # Used for naming resources
+domain_name        = "mydjangoapp.co.uk"        # Your custom domain
+hosted_zone_id     = ""                         # Leave empty to create new zone, or put existing ZXXXXXXXXXXXXXXXXX
+
+key_name           = "my-uk-ec2-key"            # Create this key pair in AWS console first
+ssh_allowed_cidr   = "203.0.113.50/32"          # YOUR home/office public IP — critical!
+
+app_instance_type  = "t4g.medium"               # Or t4g.small to save more
+nat_instance_type  = "t4g.nano"                 # Cheapest sufficient option
+
+db_instance_class  = "db.t4g.small"             # Or db.t4g.micro for tiny shops
+db_allocated_storage = 20
+db_name            = "shopdb"
+db_username        = "shopadmin"
+
+enable_multi_az    = true                       # Keep true for production
+cloudfront_enabled = true                       # Highly recommended for performance
+
+# Optional overrides
+# ecr_repository_name = "custom-repo-name"
+# ecr_image_tag_mutability = "IMMUTABLE"
+
+# Tags - add more if needed
+tags = {
+  ManagedBy = "Terraform"
+  Project   = "Django E-Commerce"
+  Owner     = "you@example.com"
+}
