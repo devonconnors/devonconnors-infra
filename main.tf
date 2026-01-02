@@ -1,3 +1,12 @@
+terraform {
+  cloud {
+    organization = "donovannevard-test"
+    workspaces {
+      name = "donovannevard-test-django"
+    }
+  }
+}
+
 # Data sources for availability zones and AMI lookups
 data "aws_availability_zones" "available" {
   state = "available"
@@ -7,20 +16,8 @@ data "aws_ssm_parameter" "amzn2_arm_ami" {
   name = "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2"
 }
 
-# DynamoDB table for Terraform state locking (create if not exists)
-resource "aws_dynamodb_table" "terraform_locks" {
-  name         = "terraform-locks"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "LockID"
-
-  attribute {
-    name = "LockID"
-    type = "S"
-  }
-
-  tags = merge(var.tags, {
-    Name = "Terraform Lock Table"
-  })
+data "aws_ecr_repository" "django" {
+  name = var.ecr_repository_name
 }
 
 # === MODULE CALLS ===
@@ -69,19 +66,27 @@ module "nat" {
   depends_on       = [module.vpc]
 }
 
-# 4. Django App EC2 instance
+# 4. Django App EC2 instance (now using ASG/launch template)
 module "ec2" {
   source = "./modules/ec2"
 
-  subnet_id              = module.vpc.public_subnets[0]
-  app_security_group_id  = module.security_groups.app_sg_id
-  ami_id                 = data.aws_ssm_parameter.amzn2_arm_ami.value  # ARM for t4g instances
-  instance_type          = var.app_instance_type
-  key_name               = var.key_name
   project_name           = var.project_name
-  domain_name            = var.domain_name
   tags                   = var.tags
+  ami_id                 = data.aws_ssm_parameter.amzn2_arm_ami.value
+  instance_type          = var.app_instance_type
+  app_security_group_id  = module.security_groups.app_sg_id
+  subnet_id              = module.vpc.private_subnets[0]
+  github_repo            = var.github_repo
 
+  db_user     = module.secrets.db_username
+  db_password = module.secrets.db_password
+  db_host     = module.rds.endpoint
+  db_name     = var.db_name
+  django_secret_key  = module.secrets.django_secret_key
+  aws_storage_bucket_name = module.s3_cloudfront.bucket_name
+  aws_s3_custom_domain    = var.domain_name
+
+  ecr_repo_url           = data.aws_ecr_repository.django.repository_url
   depends_on = [module.nat, module.security_groups]
 }
 
@@ -91,22 +96,31 @@ module "alb" {
 
   vpc_id            = module.vpc.vpc_id
   subnet_ids        = module.vpc.public_subnets
-  app_instance_id   = module.ec2.instance_id
-  certificate_arn   = module.acm.alb_certificate_arn
   project_name      = var.project_name
   domain_name       = var.domain_name
   tags              = var.tags
+  autoscaling_group_name = module.ec2.asg_name
+
+  certificate_arn   = module.acm.alb_certificate_arn
 
   depends_on = [module.ec2, module.acm, module.vpc]
 }
 
-# 6. ACM Certificate
+# 6. ACM Certificate (EMAIL validation – manual confirmation required)
 module "acm" {
   source = "./modules/acm"
 
   domain_name       = var.domain_name
-  alternative_names = ["www.${var.domain_name}"]
-  hosted_zone_id    = var.hosted_zone_id != "" ? var.hosted_zone_id : module.route53.hosted_zone_id
+  alternative_names = ["www.${var.domain_name}", "static.${var.domain_name}"]   # Now includes static – good!
+  hosted_zone_id    = module.route53_zone.zone_id
+  cloudflare_zone_id = var.cloudflare_zone_id   # If still needed; remove if unused
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  depends_on = [module.route53_zone]
 }
 
 # 7. RDS PostgreSQL
@@ -116,12 +130,14 @@ module "rds" {
   subnet_ids             = module.vpc.private_subnets
   db_security_group_id   = module.security_groups.db_sg_id
   db_name                = var.db_name
-  db_username            = var.db_username
+  db_username            = var.db_username   # Now donovannevard – fixed!
   instance_class         = var.db_instance_class
   allocated_storage      = var.db_allocated_storage
   multi_az               = var.enable_multi_az
   project_name           = var.project_name
   tags                   = var.tags
+  backup_retention_period = var.backup_retention_period
+  backup_window          = var.backup_window
 
   depends_on = [module.vpc, module.security_groups]
 }
@@ -130,7 +146,6 @@ module "rds" {
 module "s3_cloudfront" {
   source = "./modules/s3-cloudfront"
 
-  count           = var.cloudfront_enabled ? 1 : 0
   bucket_name     = "${replace(var.domain_name, ".", "-")}-static-${random_id.bucket_suffix.hex}"
   domain_name     = var.domain_name
   certificate_arn = module.acm.cloudfront_certificate_arn
@@ -144,41 +159,48 @@ resource "random_id" "bucket_suffix" {
   byte_length = 4
 }
 
-# 9. Route 53
-module "route53" {
-  source = "./modules/route53"
+# 9. SES for transactional emails
+module "ses" {
+  source = "./modules/ses"
 
-  domain_name       = var.domain_name
-  hosted_zone_id    = var.hosted_zone_id
-  alb_dns_name      = module.alb.dns_name
-  alb_zone_id       = module.alb.zone_id
-  cloudfront_domain = var.cloudfront_enabled ? module.s3_cloudfront[0].cloudfront_domain_name : ""
-  tags              = var.tags
+  domain_name    = var.domain_name
+  hosted_zone_id = module.route53_zone.zone_id
 
-  depends_on = [module.alb, module.s3_cloudfront]
+  tags = var.tags
+
+  depends_on = [module.route53_zone]
 }
 
-# 10. Secrets Manager
+# 10. Route 53
+module "route53_zone" {
+  source = "./modules/route53-zone"
+
+  domain_name = var.domain_name
+  tags        = var.tags
+}
+
+module "route53_aliases" {
+  source = "./modules/route53-aliases"
+
+  zone_id           = module.route53_zone.zone_id
+  domain_name       = var.domain_name
+  cloudfront_domain = module.s3_cloudfront.cloudfront_domain_name
+
+  tags = var.tags
+
+  depends_on = [module.s3_cloudfront]
+}
+
+# 11. Secrets Manager
 module "secrets" {
   source = "./modules/secrets"
 
   db_endpoint     = module.rds.endpoint
   db_username     = var.db_username
-  db_password     = module.rds.password  # Pass the generated password directly
+  db_password     = module.rds.password
   db_name         = var.db_name
   project_name    = var.project_name
   tags            = var.tags
 
   depends_on = [module.rds]
-}
-
-# 11. ECR Repository
-module "ecr" {
-  source = "./modules/ecr"
-
-  repository_name         = var.ecr_repository_name != "" ? var.ecr_repository_name : var.project_name
-  image_tag_mutability    = var.ecr_image_tag_mutability
-  scan_on_push            = var.ecr_scan_on_push
-  project_name            = var.project_name
-  tags                    = var.tags
 }

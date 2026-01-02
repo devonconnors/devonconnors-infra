@@ -64,16 +64,11 @@ Edit `terraform.tfvars` with your details (example content):
 ```hcl
 project_name      = "my-django-app"                    # Used for resource naming/tagging
 domain_name       = "mydjangoapp.co.uk"               # Your domain
-hosted_zone_id    = ""                           # Leave empty to create new zone
-
-key_name          = "django-app-key"            # Optional — leave empty if no SSH needed
-ssh_allowed_cidr  = "203.0.113.42/32"             # ← YOUR public IP (get from whatismyip.com)
 
 # Optional overrides (defaults are cost-optimized and suited for development)
 # app_instance_type = "t4g.medium"
 # nat_instance_type = "t4g.nano"
 # db_instance_class = "db.t4g.small"
-# cloudfront_enabled = true
 ```
 
 ## Deploy

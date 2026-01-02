@@ -1,6 +1,23 @@
+output "db_username" {
+  value = jsondecode(aws_secretsmanager_secret_version.db_credentials.secret_string)["username"]
+  sensitive = true
+}
+
+output "db_password" {
+  value = jsondecode(aws_secretsmanager_secret_version.db_credentials.secret_string)["password"]
+  sensitive = true
+}
+
+output "db_host" {
+  value = var.db_endpoint
+}
+
+output "db_name" {
+  value = var.db_name
+}
+
 output "db_secret_arn" {
-  description = "ARN of the Secrets Manager secret containing DB credentials"
-  value       = aws_secretsmanager_secret.db_credentials.arn
+  value = aws_secretsmanager_secret.db_credentials.arn
 }
 
 output "django_secret_arn" {

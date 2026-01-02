@@ -21,12 +21,6 @@ variable "domain_name" {
   type        = string
 }
 
-variable "hosted_zone_id" {
-  description = "Existing Route 53 Hosted Zone ID for the domain. Leave empty to create a new zone."
-  type        = string
-  default     = ""
-}
-
 variable "key_name" {
   description = "Name of an existing EC2 Key Pair for SSH access to app and fck-nat instances (optional but recommended for debugging)"
   type        = string
@@ -54,7 +48,6 @@ variable "nat_instance_type" {
 variable "ecr_repository_name" {
   description = "Name of the ECR repository (defaults to project_name if empty)"
   type        = string
-  default     = ""
 }
 
 variable "ecr_image_tag_mutability" {
@@ -85,6 +78,18 @@ variable "db_allocated_storage" {
   default     = 20
 }
 
+variable "backup_retention_period" {
+  description = "Number of days to retain automated RDS backups"
+  type        = number
+  default     = 7
+}
+
+variable "backup_window" {
+  description = "Daily time range for automated backups (UTC)"
+  type        = string
+  default     = "03:00-04:00"
+}
+
 variable "db_name" {
   description = "Name of the PostgreSQL database"
   type        = string
@@ -103,12 +108,6 @@ variable "enable_multi_az" {
   default     = true
 }
 
-variable "cloudfront_enabled" {
-  description = "Enable CloudFront + S3 for static/media files"
-  type        = bool
-  default     = true
-}
-
 variable "acm_alternative_names" {
   description = "Additional names for the SSL certificate. We set this to include www automatically."
   type        = list(string)
@@ -122,4 +121,22 @@ variable "tags" {
     ManagedBy = "Terraform"
     Project   = "Django E-Commerce"
   }
+}
+
+variable "github_repo" {
+  description = "GitHub repository for OIDC (e.g. donovannevard/donovannevard-django)"
+  type        = string
+  default     = "donovannevard/donovannevard-django"
+}
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token with Zone.DNS Edit permissions"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare zone ID"
+  type        = string
+  sensitive   = true
 }

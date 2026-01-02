@@ -52,3 +52,9 @@ variable "backup_retention_period" {
   type        = number
   default     = 7
 }
+
+variable "backup_window" {
+  description = "Daily time range for automated backups (UTC)"
+  type        = string
+  default     = "03:00-04:00"
+}

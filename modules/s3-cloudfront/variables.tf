@@ -11,6 +11,7 @@ variable "domain_name" {
 variable "certificate_arn" {
   description = "ACM certificate ARN (us-east-1) for CloudFront"
   type        = string
+  default     = null
 }
 
 variable "project_name" {

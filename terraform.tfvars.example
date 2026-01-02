@@ -3,10 +3,9 @@
 
 project_name       = "my-django-app"            # Used for naming resources
 domain_name        = "mydjangoapp.co.uk"        # Your custom domain
-hosted_zone_id     = ""                         # Leave empty to create new zone, or put existing ZXXXXXXXXXXXXXXXXX
-
-key_name           = "my-uk-ec2-key"            # Create this key pair in AWS console first
-ssh_allowed_cidr   = "203.0.113.50/32"          # YOUR home/office public IP — critical!
+ecr_repository_name = "mydjango-ecr-repo"
+cloudflare_api_token = "your-cloudflare-api-token-here"
+cloudflare_zone_id = "your-cloudflare-zone-id"
 
 app_instance_type  = "t4g.medium"               # Or t4g.small to save more
 nat_instance_type  = "t4g.nano"                 # Cheapest sufficient option
@@ -17,7 +16,6 @@ db_name            = "shopdb"
 db_username        = "shopadmin"
 
 enable_multi_az    = true                       # Keep true for production
-cloudfront_enabled = true                       # Highly recommended for performance
 
 # Optional overrides
 # ecr_repository_name = "custom-repo-name"

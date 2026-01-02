@@ -1,50 +1,66 @@
-variable "subnet_id" {
-  description = "Public subnet ID to launch the app instance in"
-  type        = string
-}
-
-variable "app_security_group_id" {
-  description = "Security group ID for the app instance (created in security_groups module)"
-  type        = string
-}
-
-variable "ami_id" {
-  description = "AMI ID (override if needed; default uses SSM lookup in main.tf)"
-  type        = string
-  default     = ""
-}
-
-variable "instance_type" {
-  description = "EC2 instance type for the Django app"
-  type        = string
-  default     = "t4g.medium"
-}
-
-variable "key_name" {
-  description = "Name of an existing EC2 Key Pair for SSH access (optional - leave empty to disable key access)"
-  type        = string
-  default     = ""
-}
-
 variable "project_name" {
-  description = "Project name for naming and tagging"
-  type        = string
-}
-
-variable "domain_name" {
-  description = "Domain name (used in tags and user data if needed)"
-  type        = string
-  default     = ""
+  type = string
 }
 
 variable "tags" {
-  description = "Common tags"
-  type        = map(string)
-  default     = {}
+  type = map(string)
 }
 
-variable "ssh_allowed_cidr" {
-  description = "CIDR block allowed for SSH (e.g., your home IP/32). Set to 0.0.0.0/0 only temporarily!"
+variable "ami_id" {
+  description = "AMI ID for launch template"
   type        = string
-  default     = "0.0.0.0/0"  # Change this in tfvars to your IP!
+}
+
+variable "instance_type" {
+  type = string
+}
+
+variable "app_security_group_id" {
+  description = "Security group ID for app instances"
+  type        = string
+}
+
+variable "ecr_repo_url" {
+  description = "ECR repository URL"
+  type        = string
+}
+
+variable "subnet_id" {
+  description = "Subnet ID for ASG"
+  type        = string
+}
+
+variable "github_repo" {
+  description = "GitHub repo for OIDC (e.g. username/repo)"
+  type        = string
+  default     = "donovannevard/donovannevard-django"
+}
+
+variable "db_user" {
+  type = string
+}
+
+variable "db_password" {
+  type = string
+  sensitive = true
+}
+
+variable "db_host" {
+  type = string
+}
+
+variable "db_name" {
+  type = string
+}
+
+variable "django_secret_key" {
+  type = string
+}
+
+variable "aws_storage_bucket_name" {
+  type = string
+}
+
+variable "aws_s3_custom_domain" {
+  type = string
 }
