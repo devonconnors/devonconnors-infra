@@ -4,22 +4,18 @@
 project_name       = "my-django-app"            # Used for naming resources
 domain_name        = "mydjangoapp.co.uk"        # Your custom domain
 ecr_repository_name = "mydjango-ecr-repo"
+github_repo = ""
 cloudflare_api_token = "your-cloudflare-api-token-here"
 cloudflare_zone_id = "your-cloudflare-zone-id"
 
+aws_region = "eu_west_2"
 app_instance_type  = "t4g.medium"               # Or t4g.small to save more
 nat_instance_type  = "t4g.nano"                 # Cheapest sufficient option
-
 db_instance_class  = "db.t4g.small"             # Or db.t4g.micro for tiny shops
 db_allocated_storage = 20
-db_name            = "shopdb"
-db_username        = "shopadmin"
-
+db_name            = "proddb"
+db_username        = "dbadmin"
 enable_multi_az    = true                       # Keep true for production
-
-# Optional overrides
-# ecr_repository_name = "custom-repo-name"
-# ecr_image_tag_mutability = "IMMUTABLE"
 
 # Tags - add more if needed
 tags = {

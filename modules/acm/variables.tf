@@ -9,7 +9,7 @@ variable "hosted_zone_id" {
 }
 
 variable "alternative_names" {
-  description = "Additional SANs (e.g., ['www.mydjangoapp.co.uk'] if primary is apex)"
+  description = "Additional SANs (e.g., ['www.mydjangoapp.co.uk'] if primary is apex; 'static.mydjangoapp.co.uk' is added automatically for CloudFront)"
   type        = list(string)
   default     = []
 }

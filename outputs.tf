@@ -24,18 +24,6 @@ output "rds_endpoint" {
   sensitive   = true
 }
 
-output "db_secret_arn" {
-  description = "Secrets Manager ARN containing DB credentials"
-  value       = module.secrets.db_secret_arn
-  sensitive   = true
-}
-
-output "django_secret_key_arn" {
-  description = "Secrets Manager ARN for Django SECRET_KEY (create/retrieve manually if needed)"
-  value       = module.secrets.django_secret_arn
-  sensitive   = true
-}
-
 output "nat_instance_arn" {
   description = "ARN of the NAT instance"
   value = module.nat.instance_arn

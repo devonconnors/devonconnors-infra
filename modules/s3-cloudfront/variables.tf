@@ -1,10 +1,10 @@
 variable "bucket_name" {
-  description = "Unique name for the S3 bucket (will add random suffix)"
+  description = "Base name for the S3 buckets (will add -private and -public suffixes)"
   type        = string
 }
 
 variable "domain_name" {
-  description = "Custom domain for CloudFront (e.g., mydjangoapp.co.uk)"
+  description = "Custom domain for CloudFront (e.g., devonconnors.co.uk)"
   type        = string
 }
 
@@ -23,4 +23,9 @@ variable "tags" {
   description = "Common tags"
   type        = map(string)
   default     = {}
+}
+
+variable "app_role_arn" {
+  description = "ARN of the IAM role for the app (EC2 instance running Django/Celery) to grant S3 access"
+  type        = string
 }

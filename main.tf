@@ -1,8 +1,8 @@
 terraform {
   cloud {
-    organization = "donovannevard-test"
+    organization = "devonconnors"
     workspaces {
-      name = "donovannevard-test-django"
+      name = "devonconnors-infra"
     }
   }
 }
@@ -70,6 +70,8 @@ module "nat" {
 module "ec2" {
   source = "./modules/ec2"
 
+  domain_name                   = var.domain_name
+  allowed_cidr_nets             = var.allowed_cidr_nets
   project_name           = var.project_name
   tags                   = var.tags
   ami_id                 = data.aws_ssm_parameter.amzn2_arm_ami.value
@@ -82,9 +84,10 @@ module "ec2" {
   db_password = module.secrets.db_password
   db_host     = module.rds.endpoint
   db_name     = var.db_name
-  django_secret_key  = module.secrets.django_secret_key
-  aws_storage_bucket_name = module.s3_cloudfront.bucket_name
-  aws_s3_custom_domain    = var.domain_name
+  aws_private_storage_bucket_name = module.s3_cloudfront.private_bucket_name
+  aws_public_storage_bucket_name = module.s3_cloudfront.public_bucket_name
+  aws_cloudfront_domain    = var.domain_name
+  aws_region = var.aws_region
 
   ecr_repo_url           = data.aws_ecr_repository.django.repository_url
   depends_on = [module.nat, module.security_groups]
@@ -130,7 +133,7 @@ module "rds" {
   subnet_ids             = module.vpc.private_subnets
   db_security_group_id   = module.security_groups.db_sg_id
   db_name                = var.db_name
-  db_username            = var.db_username   # Now donovannevard – fixed!
+  db_username            = var.db_username
   instance_class         = var.db_instance_class
   allocated_storage      = var.db_allocated_storage
   multi_az               = var.enable_multi_az
@@ -150,6 +153,7 @@ module "s3_cloudfront" {
   domain_name     = var.domain_name
   certificate_arn = module.acm.cloudfront_certificate_arn
   project_name    = var.project_name
+  app_role_arn    = module.ec2.app_role_arn
   tags            = var.tags
 
   depends_on = [module.acm]
@@ -169,6 +173,30 @@ module "ses" {
   tags = var.tags
 
   depends_on = [module.route53_zone]
+}
+
+# IAM user for SES SMTP credentials
+resource "aws_iam_user" "ses_smtp_user" {
+  name = "${var.project_name}-ses-smtp"
+  tags = var.tags
+}
+
+resource "aws_iam_access_key" "ses_smtp" {
+  user = aws_iam_user.ses_smtp_user.name
+}
+
+resource "aws_iam_user_policy" "ses_send" {
+  name = "${var.project_name}-ses-send-email"
+  user = aws_iam_user.ses_smtp_user.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+      Resource = "*"
+    }]
+  })
 }
 
 # 10. Route 53
@@ -199,6 +227,8 @@ module "secrets" {
   db_username     = var.db_username
   db_password     = module.rds.password
   db_name         = var.db_name
+  ses_username    = aws_iam_access_key.ses_smtp.id
+  ses_password    = aws_iam_access_key.ses_smtp.secret
   project_name    = var.project_name
   tags            = var.tags
 

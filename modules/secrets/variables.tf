@@ -1,5 +1,5 @@
 variable "db_endpoint" {
-  description = "RDS endpoint (host:port)"
+  description = "RDS endpoint (host)"
   type        = string
 }
 
@@ -19,16 +19,21 @@ variable "db_name" {
   type        = string
 }
 
+variable "ses_username" {
+  description = "SES SMTP username"
+  type        = string
+  sensitive   = true
+}
+
+variable "ses_password" {
+  description = "SES SMTP password"
+  type        = string
+  sensitive   = true
+}
+
 variable "project_name" {
   description = "Project name for naming and tagging"
   type        = string
-}
-
-variable "django_secret_key" {
-  description = "Django SECRET_KEY (if empty, one will be generated)"
-  type        = string
-  default     = ""
-  sensitive   = true
 }
 
 variable "tags" {

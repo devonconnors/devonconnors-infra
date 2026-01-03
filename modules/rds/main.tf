@@ -21,7 +21,7 @@ resource "aws_db_subnet_group" "this" {
 
 # RDS Instance
 resource "aws_db_instance" "this" {
-  identifier                  = "${var.project_name}-db"
+  identifier                  = "proddb"
 
   engine                      = "postgres"
   engine_version              = "16"  # Latest stable - adjust if needed

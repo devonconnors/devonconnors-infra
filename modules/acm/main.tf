@@ -1,7 +1,7 @@
 # Certificate for ALB (eu-west-2 default region)
 resource "aws_acm_certificate" "alb" {
   domain_name               = var.domain_name
-  subject_alternative_names = var.alternative_names
+  subject_alternative_names = concat(var.alternative_names, ["static.${var.domain_name}"])
   validation_method         = "DNS"  # Changed to DNS
 
   tags = merge(var.tags, {
@@ -46,7 +46,7 @@ resource "aws_acm_certificate" "cloudfront" {
   provider = aws.us_east_1
 
   domain_name               = var.domain_name
-  subject_alternative_names = var.alternative_names
+  subject_alternative_names = concat(var.alternative_names, ["static.${var.domain_name}"])
   validation_method         = "DNS"  # Changed to DNS
 
   tags = merge(var.tags, {

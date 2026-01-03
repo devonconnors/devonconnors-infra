@@ -5,7 +5,7 @@ on:
     branches: [ main ]  # Or use tags for production control
 
 env:
-  AWS_REGION: eu-west-2
+  AWS_REGION: ${{ env.AWS_REGION }}
   ECR_REPOSITORY: ${{ vars.ECR_REPO_NAME }}  # Set in repo variables (from Terraform output)
   IMAGE_TAG: ${{ github.sha }}  # Or 'latest' for simplicity
 

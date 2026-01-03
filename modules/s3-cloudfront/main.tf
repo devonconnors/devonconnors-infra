@@ -1,22 +1,22 @@
-# Private S3 bucket for static/media files
-resource "aws_s3_bucket" "static" {
-  bucket = var.bucket_name
+# Private S3 bucket for private media (user-uploaded originals)
+resource "aws_s3_bucket" "private" {
+  bucket = "${var.bucket_name}-private-storage"
 
   tags = merge(var.tags, {
-    Name        = "${var.project_name}-static"
+    Name        = "${var.project_name}-private-media"
     Environment = "production"  # optional - add if you use env tags
   })
 }
 
-resource "aws_s3_bucket_versioning" "static" {
-  bucket = aws_s3_bucket.static.id
+resource "aws_s3_bucket_versioning" "private" {
+  bucket = aws_s3_bucket.private.id
   versioning_configuration {
     status = "Enabled"
   }
 }
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "static" {
-  bucket = aws_s3_bucket.static.id
+resource "aws_s3_bucket_server_side_encryption_configuration" "private" {
+  bucket = aws_s3_bucket.private.id
 
   rule {
     apply_server_side_encryption_by_default {
@@ -25,8 +25,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "static" {
   }
 }
 
-resource "aws_s3_bucket_public_access_block" "static" {
-  bucket = aws_s3_bucket.static.id
+resource "aws_s3_bucket_public_access_block" "private" {
+  bucket = aws_s3_bucket.private.id
 
   block_public_acls       = true
   block_public_policy     = true
@@ -34,37 +34,90 @@ resource "aws_s3_bucket_public_access_block" "static" {
   restrict_public_buckets = true
 }
 
-# CloudFront Origin Access Control (modern replacement for OAI)
-resource "aws_cloudfront_origin_access_control" "static" {
-  name                              = "${var.project_name}-static-oac"
-  description                       = "OAC for ${var.project_name} static bucket access"
+# Bucket policy for private: Allow app role full access (read/write for Django/Celery)
+data "aws_iam_policy_document" "private_bucket_policy" {
+  statement {
+    principals {
+      type        = "AWS"
+      identifiers = [var.app_role_arn]
+    }
+
+    actions   = ["s3:*"]
+    resources = ["${aws_s3_bucket.private.arn}", "${aws_s3_bucket.private.arn}/*"]
+  }
+}
+
+resource "aws_s3_bucket_policy" "private" {
+  bucket = aws_s3_bucket.private.id
+  policy = data.aws_iam_policy_document.private_bucket_policy.json
+}
+
+# Public S3 bucket for static/public media (processed/resized images served via CDN)
+resource "aws_s3_bucket" "public" {
+  bucket = "${var.bucket_name}-public-storage"
+
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-public-static-media"
+    Environment = "production"  # optional - add if you use env tags
+  })
+}
+
+resource "aws_s3_bucket_versioning" "public" {
+  bucket = aws_s3_bucket.public.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "public" {
+  bucket = aws_s3_bucket.public.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "public" {
+  bucket = aws_s3_bucket.public.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# CloudFront Origin Access Control (modern replacement for OAI) - for public bucket only
+resource "aws_cloudfront_origin_access_control" "public" {
+  name                              = "${var.project_name}-public-oac"
+  description                       = "OAC for ${var.project_name} public bucket access"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
 }
 
-# CloudFront Distribution
-resource "aws_cloudfront_distribution" "static" {
+# CloudFront Distribution - for public bucket only
+resource "aws_cloudfront_distribution" "public" {
   origin {
-    domain_name              = aws_s3_bucket.static.bucket_regional_domain_name
-    origin_id                = "S3-${aws_s3_bucket.static.bucket}"
-    origin_access_control_id = aws_cloudfront_origin_access_control.static.id
+    domain_name              = aws_s3_bucket.public.bucket_regional_domain_name
+    origin_id                = "S3-${aws_s3_bucket.public.bucket}"
+    origin_access_control_id = aws_cloudfront_origin_access_control.public.id
   }
 
   enabled             = true
   is_ipv6_enabled     = true
-  comment             = "CloudFront distribution for ${var.project_name} static/media files"
+  comment             = "CloudFront distribution for ${var.project_name} public static/media files"
   default_root_object = "index.html"  # change if your entry point is different
 
   # IMPORTANT: Ensure your ACM cert covers ALL aliases here!
-  # Current aliases: static.nevard.dev + nevard.dev
-  # But your cert is likely only nevard.dev + www.nevard.dev → add static.nevard.dev to SANs in ACM module!
+  # e.g., add static.devonconnors.co.uk to SANs in ACM module!
   aliases = ["static.${var.domain_name}", var.domain_name]
 
   default_cache_behavior {
     allowed_methods  = ["GET", "HEAD", "OPTIONS"]
     cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-${aws_s3_bucket.static.bucket}"
+    target_origin_id = "S3-${aws_s3_bucket.public.bucket}"
 
     forwarded_values {
       query_string = false
@@ -94,7 +147,6 @@ resource "aws_cloudfront_distribution" "static" {
     minimum_protocol_version = "TLSv1.2_2021"
   }
 
-  # Removed depends_on = [var.acm_validation_dependency] — it likely doesn't exist
   # If cert is still Pending → wait 5-10 min after apply fails, then re-apply
   # CloudFront creation takes ~10-30 min to reach "Deployed" status anyway
 
@@ -102,13 +154,13 @@ resource "aws_cloudfront_distribution" "static" {
   # retain_on_delete = true
 
   tags = merge(var.tags, {
-    Name        = "${var.project_name}-cloudfront-static"
+    Name        = "${var.project_name}-cloudfront-public"
     Environment = "production"  # optional
   })
 }
 
-# Bucket policy: Allow only CloudFront (via OAC) to read objects
-data "aws_iam_policy_document" "static_bucket_policy" {
+# Bucket policy for public: Allow CloudFront to read + app role to read/write (for resized uploads)
+data "aws_iam_policy_document" "public_bucket_policy" {
   statement {
     principals {
       type        = "Service"
@@ -116,17 +168,27 @@ data "aws_iam_policy_document" "static_bucket_policy" {
     }
 
     actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.static.arn}/*"]
+    resources = ["${aws_s3_bucket.public.arn}/*"]
 
     condition {
       test     = "StringEquals"
       variable = "AWS:SourceArn"
-      values   = [aws_cloudfront_distribution.static.arn]
+      values   = [aws_cloudfront_distribution.public.arn]
     }
+  }
+
+  statement {
+    principals {
+      type        = "AWS"
+      identifiers = [var.app_role_arn]
+    }
+
+    actions   = ["s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject", "s3:PutObjectAcl"]  # Adjust as needed for your app
+    resources = ["${aws_s3_bucket.public.arn}", "${aws_s3_bucket.public.arn}/*"]
   }
 }
 
-resource "aws_s3_bucket_policy" "static" {
-  bucket = aws_s3_bucket.static.id
-  policy = data.aws_iam_policy_document.static_bucket_policy.json
+resource "aws_s3_bucket_policy" "public" {
+  bucket = aws_s3_bucket.public.id
+  policy = data.aws_iam_policy_document.public_bucket_policy.json
 }

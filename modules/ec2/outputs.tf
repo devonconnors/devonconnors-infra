@@ -16,3 +16,8 @@ output "github_actions_role_arn" {
   description = "ARN of the GitHub Actions deploy role"
   value       = aws_iam_role.github_actions.arn
 }
+
+output "app_role_arn" {
+  description = "ARN of the EC2 instance role"
+  value       = aws_iam_role.app.arn
+}

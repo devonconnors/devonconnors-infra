@@ -30,10 +30,29 @@ variable "subnet_id" {
   type        = string
 }
 
+variable "aws_private_storage_bucket_name" {
+  description = "Name of the private S3 bucket for media originals"
+  type        = string
+}
+
+variable "aws_public_storage_bucket_name" {
+  description = "Name of the public S3 bucket for static/processed media"
+  type        = string
+}
+
+variable "aws_cloudfront_domain" {
+  description = "CloudFront domain (e.g., static.devonconnors.co.uk)"
+  type        = string
+}
+
+variable "aws_region" {
+  description = "AWS region to deploy into"
+  type        = string
+}
+
 variable "github_repo" {
   description = "GitHub repo for OIDC (e.g. username/repo)"
   type        = string
-  default     = "donovannevard/donovannevard-django"
 }
 
 variable "db_user" {
@@ -53,14 +72,12 @@ variable "db_name" {
   type = string
 }
 
-variable "django_secret_key" {
-  type = string
+variable "domain_name" {
+  description = "Primary domain name (e.g., devonconnors.co.uk)"
+  type        = string
 }
 
-variable "aws_storage_bucket_name" {
-  type = string
-}
-
-variable "aws_s3_custom_domain" {
-  type = string
+variable "allowed_cidr_nets" {
+  description = "Comma-separated CIDR nets for IP restrictions in Django (e.g., '0.0.0.0/0' for all; leave empty for no restrictions)"
+  type        = string
 }

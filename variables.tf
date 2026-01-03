@@ -13,7 +13,6 @@ variable "environment" {
 variable "aws_region" {
   description = "AWS region to deploy into"
   type        = string
-  default     = "eu-west-2"  # London - perfect for UK
 }
 
 variable "domain_name" {
@@ -124,9 +123,8 @@ variable "tags" {
 }
 
 variable "github_repo" {
-  description = "GitHub repository for OIDC (e.g. donovannevard/donovannevard-django)"
+  description = "GitHub repository for OIDC"
   type        = string
-  default     = "donovannevard/donovannevard-django"
 }
 
 variable "cloudflare_api_token" {

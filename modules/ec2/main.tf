@@ -29,15 +29,38 @@ resource "aws_iam_role_policy_attachment" "ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-resource "aws_iam_role_policy_attachment" "secrets" {
-  role       = aws_iam_role.app.name
-  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
+# Scoped Secrets Manager policy (replaces broad SecretsManagerReadWrite for better security)
+resource "aws_iam_policy" "secrets_manager_access" {
+  name        = "${var.project_name}-ec2-secrets-access"
+  description = "Allow EC2 instance to read project-specific secrets"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}-*"  # Scoped to project prefix; adjust prefix if needed
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_secrets_access" {
+  role       = aws_iam_role.app.name  # Fixed to match your role name
+  policy_arn = aws_iam_policy.secrets_manager_access.arn
 }
 
 resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
   role       = aws_iam_role.app.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
+
+# Get current AWS account ID for ARN (if not already present)
+data "aws_caller_identity" "current" {}
 
 resource "aws_iam_instance_profile" "app" {
   name = "${var.project_name}-app-profile"
@@ -57,14 +80,17 @@ resource "aws_launch_template" "app" {
   }
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
-    ecr_repo_url = var.ecr_repo_url
-    DB_USER      = var.db_user
-    DB_PASSWORD  = var.db_password
-    DB_HOST      = var.db_host
-    DB_NAME      = var.db_name
-    SECRET_KEY   = var.django_secret_key
-    AWS_STORAGE_BUCKET_NAME = var.aws_storage_bucket_name
-    AWS_S3_CUSTOM_DOMAIN    = var.aws_s3_custom_domain
+    ecr_repo_url                  = var.ecr_repo_url
+    DB_USER                       = var.db_user
+    DB_PASSWORD                   = var.db_password
+    DB_HOST                       = var.db_host
+    DB_NAME                       = var.db_name
+    AWS_PRIVATE_STORAGE_BUCKET_NAME = var.aws_private_storage_bucket_name
+    AWS_PUBLIC_STORAGE_BUCKET_NAME  = var.aws_public_storage_bucket_name
+    AWS_CLOUDFRONT_DOMAIN         = var.aws_cloudfront_domain
+    AWS_REGION                    = var.aws_region
+    ALLOWED_HOSTS                 = join(",", [var.domain_name, "www.${var.domain_name}", "static.${var.domain_name}"])
+    ALLOWED_CIDR_NETS             = var.allowed_cidr_nets  # Pass as comma-separated string; e.g., "0.0.0.0/0" for all (insecure) or specific IPs
   }))
 
   tag_specifications {
