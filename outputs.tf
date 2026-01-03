@@ -26,12 +26,12 @@ output "rds_endpoint" {
 
 output "nat_instance_arn" {
   description = "ARN of the NAT instance"
-  value = module.nat.instance_arn
+  value       = module.nat.instance_arn
 }
 
 output "nat_public_ip" {
   description = "Public IP of the NAT instance"
-  value = module.nat.instance_public_ip
+  value       = module.nat.instance_public_ip
 }
 
 output "asg_name" {
@@ -55,7 +55,7 @@ output "launch_template_id" {
 
 output "ci_cd_instructions" {
   description = "How to set up automated deployment from your Django repo"
-  value = <<EOT
+  value       = <<EOT
 CI/CD Setup Instructions:
 
 1. In GitHub (your Django repo) → Settings → Secrets and variables → Actions:

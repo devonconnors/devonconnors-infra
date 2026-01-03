@@ -29,7 +29,7 @@ variable "key_name" {
 variable "ssh_allowed_cidr" {
   description = "Your public IP allowed for SSH access (e.g., 86.132.45.67/32). Change this!"
   type        = string
-  default     = "0.0.0.0/0"  # WARNING: Restrict this in your .tfvars file!
+  default     = "0.0.0.0/0" # WARNING: Restrict this in your .tfvars file!
 }
 
 variable "app_instance_type" {
@@ -110,15 +110,15 @@ variable "enable_multi_az" {
 variable "acm_alternative_names" {
   description = "Additional names for the SSL certificate. We set this to include www automatically."
   type        = list(string)
-  default     = []  # We will override this in the module call below
+  default     = [] # We will override this in the module call below
 }
 
 variable "tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
   default = {
-    ManagedBy = "Terraform"
-    Project   = "Django E-Commerce"
+    ManagedBy = "terraform"
+    Project   = "django-ecommerce"
   }
 }
 
@@ -143,4 +143,14 @@ variable "allowed_cidr_nets" {
   description = "CIDR nets allowed for access (e.g., for SGs)"
   type        = list(string)
   default     = ["0.0.0.0/0"]
+}
+
+variable "AWS_DEFAULT_REGION" {
+  type    = string
+  default = "eu-west-2"
+}
+
+variable "AWS_SECRET_ACCESS_KEY" {
+  type      = string
+  sensitive = true
 }

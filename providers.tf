@@ -15,7 +15,7 @@ provider "aws" {
 
 # Required for ACM certificate validation via DNS (Route 53)
 provider "aws" {
-  alias  = "us_east_1"  # ACM certs for CloudFront must be in us-east-1
+  alias  = "us_east_1" # ACM certs for CloudFront must be in us-east-1
   region = "us-east-1"
 
   default_tags {

@@ -80,7 +80,8 @@ resource "aws_launch_template" "app" {
   }
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
-    ecr_repo_url                  = var.ecr_repo_url
+    ECR_REPO_URL                  = var.ecr_repo_url
+    PROJECT_NAME                  = var.project_name
     DB_USER                       = var.db_user
     DB_PASSWORD                   = var.db_password
     DB_HOST                       = var.db_host
@@ -90,7 +91,7 @@ resource "aws_launch_template" "app" {
     AWS_CLOUDFRONT_DOMAIN         = var.aws_cloudfront_domain
     AWS_REGION                    = var.aws_region
     ALLOWED_HOSTS                 = join(",", [var.domain_name, "www.${var.domain_name}", "static.${var.domain_name}"])
-    ALLOWED_CIDR_NETS             = var.allowed_cidr_nets  # Pass as comma-separated string; e.g., "0.0.0.0/0" for all (insecure) or specific IPs
+    ALLOWED_CIDR_NETS             = join(",", var.allowed_cidr_nets)
   }))
 
   tag_specifications {
@@ -213,4 +214,39 @@ resource "aws_iam_role" "github_actions" {
 resource "aws_iam_role_policy_attachment" "github_deploy" {
   role       = aws_iam_role.github_actions.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"  # Narrow this later
+}
+
+# Reference the existing secret (created manually in console)
+data "aws_secretsmanager_secret" "django_ssh_key" {
+  name = "django-deploy-key"  # Change to your exact secret name
+}
+
+data "aws_secretsmanager_secret_version" "django_ssh_key_version" {
+  secret_id = data.aws_secretsmanager_secret.django_ssh_key.id
+}
+
+# IAM policy to allow EC2 role to read this secret
+resource "aws_iam_policy" "secrets_django_ssh_access" {
+  name        = "${var.project_name}-secrets-django-ssh"
+  description = "Allow EC2 instances to read Django SSH private key from Secrets Manager"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = data.aws_secretsmanager_secret.django_ssh_key.arn
+      }
+    ]
+  })
+}
+
+# Attach to your EC2 app role
+resource "aws_iam_role_policy_attachment" "app_secrets_ssh_access" {
+  role       = aws_iam_role.app.name
+  policy_arn = aws_iam_policy.secrets_django_ssh_access.arn
 }
