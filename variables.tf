@@ -1,13 +1,11 @@
 variable "project_name" {
   description = "Name of the project/shop (used for tagging and resource naming)"
   type        = string
-  default     = "django-shop"
 }
 
 variable "environment" {
   description = "Deployment environment (dev/staging/prod)"
   type        = string
-  default     = "prod"
 }
 
 variable "aws_region" {
@@ -20,28 +18,19 @@ variable "domain_name" {
   type        = string
 }
 
-variable "key_name" {
-  description = "Name of an existing EC2 Key Pair for SSH access to app and fck-nat instances (optional but recommended for debugging)"
-  type        = string
-  default     = ""
-}
-
 variable "ssh_allowed_cidr" {
   description = "Your public IP allowed for SSH access (e.g., 86.132.45.67/32). Change this!"
   type        = string
-  default     = "0.0.0.0/0" # WARNING: Restrict this in your .tfvars file!
 }
 
 variable "app_instance_type" {
   description = "EC2 instance type for Django app (t4g.medium recommended)"
   type        = string
-  default     = "t4g.medium"
 }
 
 variable "nat_instance_type" {
   description = "Instance type for fck-nat (t4g.nano is cheapest and sufficient)"
   type        = string
-  default     = "t4g.nano"
 }
 
 variable "ecr_repository_name" {
@@ -62,95 +51,54 @@ variable "ecr_image_tag_mutability" {
 variable "ecr_scan_on_push" {
   description = "Enable vulnerability scanning on ECR push"
   type        = bool
-  default     = true
+}
+
+variable "vpc_cidr" {
+  description = "CIDR block for the VPC"
+  type        = string
 }
 
 variable "db_instance_class" {
   description = "RDS PostgreSQL instance class"
   type        = string
-  default     = "db.t4g.small"
 }
 
 variable "db_allocated_storage" {
   description = "Allocated storage for RDS in GB"
   type        = number
-  default     = 20
 }
 
 variable "backup_retention_period" {
   description = "Number of days to retain automated RDS backups"
   type        = number
-  default     = 7
 }
 
 variable "backup_window" {
   description = "Daily time range for automated backups (UTC)"
   type        = string
-  default     = "03:00-04:00"
 }
 
 variable "db_name" {
   description = "Name of the PostgreSQL database"
   type        = string
-  default     = "djangodb"
 }
 
 variable "db_username" {
   description = "Master username for RDS"
   type        = string
-  default     = "djangoadmin"
 }
 
 variable "enable_multi_az" {
   description = "Enable Multi-AZ for RDS (recommended for production)"
   type        = bool
-  default     = true
-}
-
-variable "acm_alternative_names" {
-  description = "Additional names for the SSL certificate. We set this to include www automatically."
-  type        = list(string)
-  default     = [] # We will override this in the module call below
 }
 
 variable "tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
-  default = {
-    ManagedBy = "terraform"
-    Project   = "django-ecommerce"
-  }
 }
 
 variable "django_app_github_repo" {
   description = "GitHub repository for OIDC"
   type        = string
-}
-
-# variable "cloudflare_api_token" {
-#   description = "Cloudflare API token with Zone.DNS Edit permissions"
-#   type        = string
-#   sensitive   = true
-# }
-
-# variable "cloudflare_zone_id" {
-#   description = "Cloudflare zone ID"
-#   type        = string
-#   sensitive   = true
-# }
-
-variable "allowed_cidr_nets" {
-  description = "CIDR nets allowed for access (e.g., for SGs)"
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
-}
-
-variable "AWS_DEFAULT_REGION" {
-  type    = string
-  default = "eu-west-2"
-}
-
-variable "AWS_SECRET_ACCESS_KEY" {
-  type      = string
-  sensitive = true
 }

@@ -11,5 +11,4 @@ variable "hosted_zone_id" {
 variable "tags" {
   description = "Tags to apply to SES resources"
   type        = map(string)
-  default     = {}
 }

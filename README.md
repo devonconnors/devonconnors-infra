@@ -85,7 +85,6 @@ domain_name       = "clientdomain.co.uk"
 app_instance_type = "t4g.medium"
 nat_instance_type = "t4g.nano"
 db_instance_class = "db.t4g.small"
-key_name          = "clientname-django-key"  # For SSH
 ecr_repository_name = "clientname-ecr-repo"  # ECR name
 # Existing resources for import/reuse
 existing_vpc_id     = "vpc-xxxxxxxx"  # If reusing
@@ -128,7 +127,6 @@ cloudfront_domain: CDN domain.
 
 Initial Access
 SSM: aws ssm start-session --target i-xxxxxxxx (instance ID from ASG instances in Console).
-SSH (if key_name set): ssh -i key.pem ec2-user@public-ip (from EC2 console).
 
 Django Secrets
 Terraform creates/updates "prod" secret with DB/SES creds.

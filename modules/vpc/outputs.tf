@@ -23,6 +23,11 @@ output "private_route_table_ids" {
   value       = module.vpc.private_route_table_ids
 }
 
+output "vpc_cidr_block" {
+  description = "The CIDR block of the VPC"
+  value       = module.vpc.vpc_cidr_block
+}
+
 output "internet_gateway_id" {
   description = "Internet Gateway ID"
   value       = module.vpc.igw_id

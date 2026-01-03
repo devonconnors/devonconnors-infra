@@ -27,6 +27,7 @@ module "vpc" {
   source = "./modules/vpc"
 
   project_name = var.project_name
+  vpc_cidr = var.vpc_cidr
   tags         = var.tags
 }
 
@@ -52,11 +53,6 @@ module "nat" {
   subnet_id     = module.vpc.public_subnets[0]
   instance_type = var.nat_instance_type
 
-  # Enable SSH access only if key_name provided (optional debug)
-  use_ssh         = var.key_name != "" ? true : false
-  ssh_key_name    = var.key_name != "" ? var.key_name : null
-  ssh_cidr_blocks = { ipv4 = [var.ssh_allowed_cidr] }
-
   # Automatically update private route tables
   update_route_tables = true
   route_tables_ids    = { for i, rt_id in module.vpc.private_route_table_ids : "private-rt-${i}" => rt_id }
@@ -71,7 +67,7 @@ module "ec2" {
   source = "./modules/ec2"
 
   domain_name            = var.domain_name
-  allowed_cidr_nets      = var.allowed_cidr_nets
+  allowed_cidr_nets      = [module.vpc.vpc_cidr_block]
   project_name           = var.project_name
   tags                   = var.tags
   ami_id                 = data.aws_ssm_parameter.amzn2_arm_ami.value
