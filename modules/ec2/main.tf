@@ -202,7 +202,7 @@ resource "aws_iam_role" "github_actions" {
       Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {
-        StringLike = { "token.actions.githubusercontent.com:sub" = "repo:${var.github_repo}:*" }
+        StringLike = { "token.actions.githubusercontent.com:sub" = "repo:${var.django_app_github_repo}:*" }
       }
     }]
   })

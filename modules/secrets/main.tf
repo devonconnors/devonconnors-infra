@@ -1,11 +1,9 @@
-# Consolidated "prod" secret with nested DB_CREDENTIALS and SES_CREDENTIALS as JSON objects
 resource "aws_secretsmanager_secret" "prod" {
   name                    = "prod"
-  description             = "Consolidated credentials (DB and SES) for ${var.project_name}"
-  recovery_window_in_days = 30  # Prevent accidental deletion
-
+  description             = "Consolidated secrets for ${var.project_name}"
+  recovery_window_in_days = 30
   tags = merge(var.tags, {
-    Name = "${var.project_name}-prod-secret"
+    Name = "${var.project_name}-prod-secret" 
   })
 }
 

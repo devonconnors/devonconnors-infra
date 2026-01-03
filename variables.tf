@@ -122,19 +122,25 @@ variable "tags" {
   }
 }
 
-variable "github_repo" {
+variable "django_app_github_repo" {
   description = "GitHub repository for OIDC"
   type        = string
 }
 
-variable "cloudflare_api_token" {
-  description = "Cloudflare API token with Zone.DNS Edit permissions"
-  type        = string
-  sensitive   = true
-}
+# variable "cloudflare_api_token" {
+#   description = "Cloudflare API token with Zone.DNS Edit permissions"
+#   type        = string
+#   sensitive   = true
+# }
 
-variable "cloudflare_zone_id" {
-  description = "Cloudflare zone ID"
-  type        = string
-  sensitive   = true
+# variable "cloudflare_zone_id" {
+#   description = "Cloudflare zone ID"
+#   type        = string
+#   sensitive   = true
+# }
+
+variable "allowed_cidr_nets" {
+  description = "CIDR nets allowed for access (e.g., for SGs)"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
 }

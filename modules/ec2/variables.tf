@@ -50,7 +50,7 @@ variable "aws_region" {
   type        = string
 }
 
-variable "github_repo" {
+variable "django_app_github_repo" {
   description = "GitHub repo for OIDC (e.g. username/repo)"
   type        = string
 }
@@ -79,5 +79,6 @@ variable "domain_name" {
 
 variable "allowed_cidr_nets" {
   description = "Comma-separated CIDR nets for IP restrictions in Django (e.g., '0.0.0.0/0' for all; leave empty for no restrictions)"
-  type        = string
+  type        = list(string)
+  default     = ["0.0.0.0/0"]  # Optional default if not set
 }

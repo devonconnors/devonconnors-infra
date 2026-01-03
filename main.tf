@@ -78,7 +78,7 @@ module "ec2" {
   instance_type          = var.app_instance_type
   app_security_group_id  = module.security_groups.app_sg_id
   subnet_id              = module.vpc.private_subnets[0]
-  github_repo            = var.github_repo
+  django_app_github_repo            = var.django_app_github_repo
 
   db_user     = module.secrets.db_username
   db_password = module.secrets.db_password
@@ -116,7 +116,7 @@ module "acm" {
   domain_name       = var.domain_name
   alternative_names = ["www.${var.domain_name}", "static.${var.domain_name}"]   # Now includes static – good!
   hosted_zone_id    = module.route53_zone.zone_id
-  cloudflare_zone_id = var.cloudflare_zone_id   # If still needed; remove if unused
+  # cloudflare_zone_id = var.cloudflare_zone_id   # If still needed; remove if unused
 
   providers = {
     aws           = aws

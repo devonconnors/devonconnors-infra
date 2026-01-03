@@ -4,9 +4,8 @@
 project_name       = "my-django-app"            # Used for naming resources
 domain_name        = "mydjangoapp.co.uk"        # Your custom domain
 ecr_repository_name = "mydjango-ecr-repo"
-github_repo = ""
-cloudflare_api_token = "your-cloudflare-api-token-here"
-cloudflare_zone_id = "your-cloudflare-zone-id"
+django_app_github_repo = ""
+hosted_zone_id = "Z0123456789ABCDEF"            # For Route53 registered domains & no manual steps after terraform apply
 
 aws_region = "eu_west_2"
 app_instance_type  = "t4g.medium"               # Or t4g.small to save more

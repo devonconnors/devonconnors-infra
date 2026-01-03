@@ -4,8 +4,9 @@ variable "domain_name" {
 }
 
 variable "hosted_zone_id" {
-  description = "Route 53 hosted zone ID for DNS validation records"
+  description = "Optional Route 53 hosted zone ID for automatic DNS validation records (leave null for manual addition at registrar like GoDaddy)"
   type        = string
+  default     = null
 }
 
 variable "alternative_names" {
@@ -18,8 +19,4 @@ variable "tags" {
   description = "Tags to apply to certificates"
   type        = map(string)
   default     = {}
-}
-
-variable "cloudflare_zone_id" {
-  type = string
 }

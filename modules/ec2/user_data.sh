@@ -4,7 +4,7 @@ set -euo pipefail
 # Redirect output to log for debugging
 exec > >(tee /var/log/user-data.log) 2>&1
 
-echo "User data started: $(date)"
+echo "User data started: $$(date)"
 
 # Update packages
 yum update -y
@@ -27,15 +27,15 @@ fi
 
 # Log in to ECR
 echo "Logging in to ECR..."
-aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${ecr_repo_url}"
+aws ecr get-login-password --region "$${AWS_REGION}" | docker login --username AWS --password-stdin "$${ecr_repo_url}"
 
 # Calculate Redis repo URL (assuming same registry prefix as Django repo, adjust pattern if needed)
-redis_repo_url="${ecr_repo_url/django\/latest/redis\/7-alpine}"  # Replace 'django/latest' with 'redis/7-alpine' based on repo structure
+redis_repo_url="$${ecr_repo_url/django/latest/redis/7-alpine}"  # Replace 'django/latest' with 'redis/7-alpine' based on repo structure
 
 # Pull images
 echo "Pulling images..."
-docker pull "${ecr_repo_url}:latest"
-docker pull "${redis_repo_url}"
+docker pull "$${ecr_repo_url}:latest"
+docker pull "$${redis_repo_url}"
 
 # Create docker-compose.yml
 echo "Creating docker-compose.yml..."
@@ -122,35 +122,64 @@ if ! command -v /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl
 fi
 
 # Inline CloudWatch config
-cat <<'EOC' > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
-{
-  "agent": {
-    "metrics_collection_interval": 60,
-    "run_as_user": "root"
-  },
-  "metrics": {
-    "append_dimensions": {
-      "InstanceId": "$${aws:InstanceId}",
-      "AutoScalingGroupName": "$${aws:AutoScalingGroupName}"
-    },
-    "metrics_collected": {
-      "cpu": {"measurement": ["cpu_usage_active"], "metrics_collection_interval": 60},
-      "mem": {"measurement": ["mem_used_percent"], "metrics_collection_interval": 60},
-      "disk": {"measurement": ["disk_used_percent"], "resources": ["/"], "metrics_collection_interval": 60}
-    }
-  },
-  "logs": {
-    "logs_collected": {
-      "files": {
-        "collect_list": [
-          {"file_path": "/var/log/messages", "log_group_name": "ec2-messages", "log_stream_name": "{instance_id}"},
-          {"file_path": "/var/log/user-data.log", "log_group_name": "ec2-user-data", "log_stream_name": "{instance_id}"}
-        ]
-      }
-    }
-  }
-}
-EOC
+cat <<EOF > /home/ec2-user/docker-compose.yml
+version: '3.8'
+services:
+  redis:
+    image: $${redis_ecr_url}:7-alpine  # From your ECR (rebuild if needed)
+    ports:
+      - 6379:6379
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 50
+
+  django:
+    image: $${ecr_repo_url}:latest
+    ports:
+      - 80:8000
+    environment:
+      - DEBUG=0
+      - APP_NAME=$${var.project_name}
+      - ALLOWED_HOSTS=$${var.domain_name}
+      - CACHE_LOCATION=redis://redis:6379/1
+      - CELERY_BROKER=redis://redis:6379/0
+      - CELERY_BACKEND=redis://redis:6379/0
+      - AWS_REGION=eu-west-2
+      - AWS_PUBLIC_STORAGE_BUCKET_NAME=devonconnors-public-storage  # Existing
+      - AWS_PRIVATE_STORAGE_BUCKET_NAME=devonconnors-private-storage  # Existing
+      - AWS_CLOUDFRONT_DOMAIN=$${cloudfront_domain}  # From Terraform
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "server_healthcheck.sh"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: always
+
+  celery:
+    image: $${ecr_repo_url}:latest
+    command: celery -A $${var.project_name} worker -B -l INFO -P solo
+    environment:
+      - CACHE_LOCATION=redis://redis:6379/1
+      - CELERY_BROKER=redis://redis:6379/0
+      - CELERY_BACKEND=redis://redis:6379/0
+      - APP_NAME=$${var.project_name}
+      - AWS_REGION=eu-west-2
+    depends_on:
+      - redis
+      - django
+    healthcheck:
+      test: ["CMD", "celery", "-A", "$${var.project_name}", "inspect", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: always
+EOF
 
 # Start agent
 echo "Starting CloudWatch Agent..."
