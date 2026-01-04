@@ -28,6 +28,7 @@ resource "aws_db_instance" "this" {
   instance_class              = var.instance_class
   allocated_storage           = var.allocated_storage
   max_allocated_storage       = 100  # Enable storage autoscaling up to 100GB
+  publicly_accessible         = var.publicly_accessible
 
   db_name                     = var.db_name
   username                    = var.db_username

@@ -6,46 +6,44 @@ exec > >(tee /var/log/user-data.log) 2>&1
 
 echo "User data started: $(date)"
 
-# Update packages
-yum update -y
+# Install dependencies early (git for clone, jq if ever needed again)
+echo "Installing dependencies..."
+sudo yum update -y
+sudo yum install -y git
 
-# Install Docker (unchanged)
+# Install Docker
 if ! command -v docker >/dev/null 2>&1; then
   echo "Installing Docker..."
-  amazon-linux-extras install docker -y || yum install -y docker
-  systemctl start docker
-  systemctl enable docker
-  usermod -aG docker ec2-user
+  sudo amazon-linux-extras install docker -y || sudo yum install -y docker
+  sudo systemctl start docker
+  sudo systemctl enable docker
+  sudo usermod -aG docker ec2-user
 fi
 
-# Install Docker Compose (unchanged)
-if ! command -v docker-compose >/dev/null 2>&1; then
-  echo "Installing Docker Compose..."
-  curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
-  chmod +x /usr/local/bin/docker-compose
+# Install Docker Compose v2 (ARM64)
+if ! docker compose version >/dev/null 2>&1; then
+  echo "Installing Docker Compose v2 (ARM64)..."
+  sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-aarch64" -o /usr/local/bin/docker-compose
+  sudo chmod +x /usr/local/bin/docker-compose
 fi
 
-# Log in to ECR (unchanged)
+# Log in to ECR
 echo "Logging in to ECR..."
 aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${ECR_REPO_URL}"
 
-# Pull images (unchanged)
+# Pull images
 echo "Pulling images..."
 docker pull "${ECR_REPO_URL}:latest"
 docker pull "redis:7-alpine"
 
-# Fetch SSH private key from Secrets Manager (JSON secret with django_private_key key)
+# Fetch SSH private key from Secrets Manager (plaintext)
 echo "Fetching SSH private key from Secrets Manager..."
 mkdir -p /home/ec2-user/.ssh
-
-# Get the full secret JSON, then extract just the private key value
-PRIVATE_KEY=$(aws secretsmanager get-secret-value --secret-id "django-deploy-key" --query SecretString --output text | jq -r '.django_private_key')
-
-echo "$PRIVATE_KEY" > /home/ec2-user/.ssh/id_ed25519
+aws secretsmanager get-secret-value --secret-id "django-deploy-key" --region "${AWS_REGION}" --query SecretString --output text > /home/ec2-user/.ssh/id_ed25519
 chmod 600 /home/ec2-user/.ssh/id_ed25519
 chown ec2-user:ec2-user /home/ec2-user/.ssh/id_ed25519
 
-# Configure git to use SSH (no passphrase prompt)
+# Configure git SSH
 echo "Configuring git SSH..."
 cat <<EOF > /home/ec2-user/.ssh/config
 Host *
@@ -56,54 +54,87 @@ EOF
 chmod 600 /home/ec2-user/.ssh/config
 chown ec2-user:ec2-user /home/ec2-user/.ssh/config
 
-# Clone private repo via SSH
+# Clone private repo
 echo "Cloning private Django repo..."
-su - ec2-user -c "git clone git@github.com:yourusername/your-django-repo.git /app"  # <-- CHANGE TO YOUR ACTUAL REPO URL
+su - ec2-user -c "git clone git@github.com:devonconnors/devonconnors-app.git /app"
 
-# If clone fails, log error
 if [ $? -ne 0 ]; then
-  echo "Git clone failed! Check SSH key, repo permissions, and Secrets Manager value."
+  echo "Git clone failed!"
   exit 1
 fi
 
-# Configure git to use SSH (no passphrase prompt)
-echo "Configuring git SSH..."
-cat <<EOF > /home/ec2-user/.ssh/config
-Host *
-  IdentityFile /home/ec2-user/.ssh/id_ed25519
-  StrictHostKeyChecking no
-  UserKnownHostsFile=/dev/null
+# Create .env file
+echo "Creating .env file..."
+cat <<EOF > /home/ec2-user/.env
+DEBUG=0
+STAGING=0
+ALLOWED_CIDR_NETS=${ALLOWED_CIDR_NETS}
+CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS}
+APP_NAME=${APP_NAME}
+CACHE_LOCATION=${CACHE_LOCATION}
+CELERY_BROKER=${CELERY_BROKER}
+CELERY_BACKEND=${CELERY_BACKEND}
+AWS_REGION=${AWS_REGION}
+AWS_PUBLIC_STORAGE_BUCKET_NAME=${AWS_PUBLIC_STORAGE_BUCKET_NAME}
+AWS_PRIVATE_STORAGE_BUCKET_NAME=${AWS_PRIVATE_STORAGE_BUCKET_NAME}
+AWS_CLOUDFRONT_DOMAIN=${AWS_CLOUDFRONT_DOMAIN}
 EOF
-chmod 600 /home/ec2-user/.ssh/config
-chown ec2-user:ec2-user /home/ec2-user/.ssh/config
 
-# Clone private repo via SSH (change URL to match your host)
-echo "Cloning private Django repo..."
-su - ec2-user -c "git clone git@github.com:yourusername/your-django-repo.git /app"  # <-- CHANGE THIS LINE
-# For Bitbucket: git@bitbucket.org:youruser/your-repo.git
-# For GitLab: git@gitlab.com:yourgroup/your-repo.git
-
-# If repo clone fails, log error
-if [ $? -ne 0 ]; then
-  echo "Git clone failed! Check SSH key and repo permissions."
-  exit 1
-fi
-
-# Create docker-compose.yml (unchanged)
+# Create docker-compose.yml
 echo "Creating docker-compose.yml..."
 cat <<EOF > /home/ec2-user/docker-compose.yml
-# ... (your existing compose content here, unchanged)
+x-django-common:
+  &django-common
+  image: ${ECR_REPO_URL}:latest
+  env_file:
+    - .env
+  depends_on:
+    redis:
+      condition: service_healthy
+services:
+  django:
+    <<: *django-common
+    ports:
+      - 80:8000
+    healthcheck:
+      test: ["CMD", "server_healthcheck.sh"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    restart: always
+  celery:
+    <<: *django-common
+    command: celery -A $${APP_NAME} worker -B -l INFO -P solo
+    healthcheck:
+      test: ["CMD", "celery", "-A", "$${APP_NAME}", "inspect", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+  redis:
+    image: redis:7-alpine
+    ports:
+      - 6379:6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 50
+      start_period: 10s
+    restart: always
 EOF
 
-# Stop/remove old containers (unchanged)
+# Stop/remove old containers
 echo "Stopping old containers..."
 docker compose -f /home/ec2-user/docker-compose.yml down || true
 
-# Run with Docker Compose (unchanged)
+# Run with Docker Compose
 echo "Starting containers with Docker Compose..."
 docker compose -f /home/ec2-user/docker-compose.yml up -d
 
-# Health check (unchanged)
+# Health check
 sleep 10
 if docker compose -f /home/ec2-user/docker-compose.yml ps | grep -q Up; then
   echo "Containers running OK"
@@ -119,8 +150,7 @@ if ! command -v /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl
   yum install -y amazon-cloudwatch-agent
 fi
 
-# Inline CloudWatch config
-cat <<'EOC' > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+cat <<EOC > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
 {
   "agent": {
     "metrics_collection_interval": 60,
@@ -150,8 +180,7 @@ cat <<'EOC' > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
 }
 EOC
 
-# Start agent
 echo "Starting CloudWatch Agent..."
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 
-echo "User data finished: $$(date)"
+echo "User data finished: $(date)"

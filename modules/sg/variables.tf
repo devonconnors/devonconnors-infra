@@ -23,3 +23,9 @@ variable "tags" {
   description = "Common tags"
   type        = map(string)
 }
+
+variable "rds_publicly_accessible" {
+  description = "Allow public access to connect to RDS (for staging)"
+  type        = bool
+  default     = false
+}

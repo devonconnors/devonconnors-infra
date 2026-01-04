@@ -38,6 +38,7 @@ module "security_groups" {
   vpc_id           = module.vpc.vpc_id
   project_name     = var.project_name
   ssh_allowed_cidr = var.ssh_allowed_cidr
+  rds_publicly_accessible = var.rds_publicly_accessible
   tags             = var.tags
 
   depends_on = [module.vpc]
@@ -76,10 +77,6 @@ module "ec2" {
   subnet_id              = module.vpc.private_subnets[0]
   django_app_github_repo = var.django_app_github_repo
 
-  db_user                         = module.secrets.db_username
-  db_password                     = module.secrets.db_password
-  db_host                         = module.rds.endpoint
-  db_name                         = var.db_name
   aws_private_storage_bucket_name = module.s3_cloudfront.private_bucket_name
   aws_public_storage_bucket_name  = module.s3_cloudfront.public_bucket_name
   aws_cloudfront_domain           = var.domain_name
@@ -133,6 +130,7 @@ module "rds" {
   tags                    = var.tags
   backup_retention_period = var.backup_retention_period
   backup_window           = var.backup_window
+  publicly_accessible     = var.rds_publicly_accessible
 
   depends_on = [module.vpc, module.security_groups]
 }
@@ -141,7 +139,6 @@ module "rds" {
 module "s3_cloudfront" {
   source = "./modules/s3-cloudfront"
 
-  bucket_name     = "${replace(var.domain_name, ".", "-")}-static-${random_id.bucket_suffix.hex}"
   domain_name     = var.domain_name
   certificate_arn = module.acm.cloudfront_certificate_arn
   project_name    = var.project_name
@@ -243,4 +240,18 @@ resource "aws_ssm_document" "django_update" {
       }
     ]
   })
+}
+
+# 12. VPN
+module "vpn" {
+  source = "./modules/vpn"
+
+  project_name           = var.project_name
+  tags                   = var.tags
+  server_certificate_arn = module.acm.alb_certificate_arn 
+  client_cidr_block      = var.vpn_cidr
+  vpc_cidr_block         = module.vpc.vpc_cidr_block
+  private_subnet_ids     = module.vpc.private_subnets
+
+  depends_on = [module.vpc]
 }

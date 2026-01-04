@@ -58,3 +58,9 @@ variable "backup_window" {
   type        = string
   default     = "03:00-04:00"
 }
+
+variable "publicly_accessible" {
+  description = "Allow public access to connect to RDS (for staging)"
+  type        = bool
+  default     = false
+}

@@ -58,6 +58,11 @@ variable "vpc_cidr" {
   type        = string
 }
 
+variable "vpn_cidr" {
+  description = "CIDR block for the VPC"
+  type        = string
+}
+
 variable "db_instance_class" {
   description = "RDS PostgreSQL instance class"
   type        = string
@@ -101,4 +106,20 @@ variable "tags" {
 variable "django_app_github_repo" {
   description = "GitHub repository for OIDC"
   type        = string
+}
+
+variable "rds_publicly_accessible" {
+  description = "Allow public access to connect to RDS (for staging)"
+  type        = bool
+  default     = false
+}
+
+# Terraform Cloud variables
+variable "AWS_DEFAULT_REGION" {
+  type = string
+}
+
+variable "AWS_SECRET_ACCESS_KEY" {
+  type = string
+  sensitive = true
 }

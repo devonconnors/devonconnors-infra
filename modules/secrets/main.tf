@@ -1,5 +1,5 @@
 resource "aws_secretsmanager_secret" "prod" {
-  name                    = "prod"
+  name                    = "django-prod-terraform"
   description             = "Consolidated secrets for ${var.project_name}"
   recovery_window_in_days = 30
   tags = merge(var.tags, {
@@ -22,4 +22,8 @@ resource "aws_secretsmanager_secret_version" "prod" {
       password = var.ses_password
     })
   })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
 }

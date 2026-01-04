@@ -43,7 +43,10 @@ resource "aws_iam_policy" "secrets_manager_access" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}-*"  # Scoped to project prefix; adjust prefix if needed
+        Resource = [
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:prod",
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}-*"
+        ]
       }
     ]
   })
@@ -81,17 +84,16 @@ resource "aws_launch_template" "app" {
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
     ECR_REPO_URL                  = var.ecr_repo_url
-    PROJECT_NAME                  = var.project_name
-    DB_USER                       = var.db_user
-    DB_PASSWORD                   = var.db_password
-    DB_HOST                       = var.db_host
-    DB_NAME                       = var.db_name
-    AWS_PRIVATE_STORAGE_BUCKET_NAME = var.aws_private_storage_bucket_name
-    AWS_PUBLIC_STORAGE_BUCKET_NAME  = var.aws_public_storage_bucket_name
-    AWS_CLOUDFRONT_DOMAIN         = var.aws_cloudfront_domain
     AWS_REGION                    = var.aws_region
-    ALLOWED_HOSTS                 = join(",", [var.domain_name, "www.${var.domain_name}", "static.${var.domain_name}"])
     ALLOWED_CIDR_NETS             = join(",", var.allowed_cidr_nets)
+    CSRF_TRUSTED_ORIGINS          = join(",", [for host in [var.domain_name, "www.${var.domain_name}", "static.${var.domain_name}"] : "https://${host}"])
+    APP_NAME                      = var.project_name
+    CACHE_LOCATION                = "redis://redis:6379/1"
+    CELERY_BROKER                 = "redis://redis:6379/0"
+    CELERY_BACKEND                = "redis://redis:6379/0"
+    AWS_PUBLIC_STORAGE_BUCKET_NAME  = var.aws_public_storage_bucket_name
+    AWS_PRIVATE_STORAGE_BUCKET_NAME = var.aws_private_storage_bucket_name
+    AWS_CLOUDFRONT_DOMAIN         = var.aws_cloudfront_domain
   }))
 
   tag_specifications {

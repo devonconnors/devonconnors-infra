@@ -82,6 +82,14 @@ resource "aws_security_group" "db" {
     security_groups = [aws_security_group.app.id]
   }
 
+  ingress {
+    description     = "PostgreSQL from local (staging)"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks     = var.rds_publicly_accessible ? [var.ssh_allowed_cidr] : []
+  }
+
   egress {
     description = "Allow outbound (for updates, etc.)"
     from_port   = 0

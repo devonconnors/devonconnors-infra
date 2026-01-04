@@ -1,6 +1,10 @@
 # Private S3 bucket for private media (user-uploaded originals)
 resource "aws_s3_bucket" "private" {
-  bucket = "${var.bucket_name}-private-storage"
+  bucket = "${var.project_name}-storage-private"
+
+  lifecycle {
+    ignore_changes = [bucket]
+  }
 
   tags = merge(var.tags, {
     Name        = "${var.project_name}-private-media"
@@ -54,7 +58,11 @@ resource "aws_s3_bucket_policy" "private" {
 
 # Public S3 bucket for static/public media (processed/resized images served via CDN)
 resource "aws_s3_bucket" "public" {
-  bucket = "${var.bucket_name}-public-storage"
+  bucket = "${var.project_name}-storage-public"
+
+  lifecycle {
+    ignore_changes = [bucket]
+  }
 
   tags = merge(var.tags, {
     Name        = "${var.project_name}-public-static-media"

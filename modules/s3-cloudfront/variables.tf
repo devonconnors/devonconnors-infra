@@ -1,8 +1,3 @@
-variable "bucket_name" {
-  description = "Base name for the S3 buckets (will add -private and -public suffixes)"
-  type        = string
-}
-
 variable "domain_name" {
   description = "Custom domain for CloudFront (e.g., devonconnors.co.uk)"
   type        = string
