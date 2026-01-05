@@ -4,6 +4,7 @@ resource "aws_lb" "this" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = var.subnet_ids
+  idle_timeout = 120
 
   tags = var.tags
 }
