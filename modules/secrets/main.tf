@@ -23,6 +23,10 @@ resource "aws_secretsmanager_secret_version" "prod" {
     })
   })
 
+  keepers = {
+    force_update = "2026-01-06-v1"  # Change this value (e.g., increment date/v) to force new secret version
+  }
+
   lifecycle {
     ignore_changes = [secret_string]
   }
