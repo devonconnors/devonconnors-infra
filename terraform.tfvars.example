@@ -9,7 +9,7 @@ ssh_allowed_cidr = ""              # Your I.P. address for access to the securit
 vpc_cidr = "10.0.0.0/16"    # CIDR range to use for VPC
 
 aws_region = "eu-west-2"
-app_instance_type  = "t4g.small"
+app_instance_type  = "t4g.medium"         # Since Django shares resources with Celery & Redis, it needs a decent instance size
 nat_instance_type  = "t4g.nano"
 db_instance_class  = "db.t4g.nano"
 db_allocated_storage = 20

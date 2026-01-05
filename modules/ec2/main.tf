@@ -93,7 +93,7 @@ resource "aws_launch_template" "app" {
     AWS_PUBLIC_STORAGE_BUCKET_NAME  = var.aws_public_storage_bucket_name
     AWS_PRIVATE_STORAGE_BUCKET_NAME = var.aws_private_storage_bucket_name
     AWS_CLOUDFRONT_DOMAIN         = var.aws_cloudfront_domain
-    DUMMY_FORCE_REFRESH = "2026-01-04" # Force an update
+    DUMMY_FORCE_REFRESH = "2026-01-05" # Force an update
   }))
 
   tag_specifications {
@@ -137,6 +137,19 @@ resource "aws_autoscaling_group" "app" {
       value               = tag.value
       propagate_at_launch = true
     }
+  }
+
+  instance_refresh {
+    strategy = "Rolling"   # or "BlueGreen" if you prefer, but Rolling is simpler/zero-downtime friendly
+
+    preferences {
+      instance_warmup        = 300          # seconds to wait for new instance to become healthy (adjust based on your app startup time)
+      min_healthy_percentage = 90           # during refresh, keep at least 90% of capacity healthy
+      max_healthy_percentage = 110          # optional, allows slight over-provisioning
+    }
+
+    # Optional: trigger refresh on these changes too
+    triggers = ["tag"]
   }
 }
 

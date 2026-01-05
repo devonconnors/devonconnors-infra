@@ -8,12 +8,17 @@ variable "domain_name" {
   type        = string
 }
 
-variable "cloudfront_domain" {
-  description = "CloudFront distribution domain name"
-  type        = string
-}
-
 variable "tags" {
   description = "Tags to apply"
   type        = map(string)
+}
+
+variable "alb_dns_name" {
+  description = "DNS name of the ALB (e.g. dualstack....elb.amazonaws.com)"
+  type        = string
+}
+
+variable "alb_zone_id" {
+  description = "Canonical hosted zone ID for the ALB"
+  type        = string
 }

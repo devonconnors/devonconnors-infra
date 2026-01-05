@@ -11,7 +11,6 @@ variable "db_security_group_id" {
 variable "instance_class" {
   description = "RDS instance class (db.t4g.small recommended)"
   type        = string
-  default     = "db.t4g.small"
 }
 
 variable "allocated_storage" {

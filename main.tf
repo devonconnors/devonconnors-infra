@@ -197,11 +197,12 @@ module "route53_aliases" {
 
   zone_id           = module.route53_zone.zone_id
   domain_name       = var.domain_name
-  cloudfront_domain = module.s3_cloudfront.cloudfront_domain_name
+  alb_dns_name      = module.alb.dns_name
+  alb_zone_id       = module.alb.zone_id
 
   tags = var.tags
 
-  depends_on = [module.s3_cloudfront]
+  depends_on = [module.alb, module.route53_zone]
 }
 
 # 11. Secrets Manager
