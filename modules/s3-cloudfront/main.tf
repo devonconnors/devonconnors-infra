@@ -1,6 +1,6 @@
 # Private S3 bucket for private media (user-uploaded originals)
 resource "aws_s3_bucket" "private" {
-  bucket = "${var.project_name}-storage-private"
+  bucket = "${var.project_name}-private-storage"
 
   lifecycle {
     ignore_changes = [bucket]
@@ -58,7 +58,7 @@ resource "aws_s3_bucket_policy" "private" {
 
 # Public S3 bucket for static/public media (processed/resized images served via CDN)
 resource "aws_s3_bucket" "public" {
-  bucket = "${var.project_name}-storage-public"
+  bucket = "${var.project_name}-public-storage"
 
   lifecycle {
     ignore_changes = [bucket]

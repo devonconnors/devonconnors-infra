@@ -8,10 +8,6 @@ terraform {
 }
 
 # Data sources for availability zones and AMI lookups
-data "aws_availability_zones" "available" {
-  state = "available"
-}
-
 data "aws_ssm_parameter" "amzn2_arm_ami" {
   name = "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2"
 }
@@ -28,6 +24,7 @@ module "vpc" {
 
   project_name = var.project_name
   vpc_cidr = var.vpc_cidr
+  map_public_ip_on_launch = true
   tags         = var.tags
 }
 
@@ -75,7 +72,6 @@ module "ec2" {
   instance_type          = var.app_instance_type
   app_security_group_id  = module.security_groups.app_sg_id
   subnet_id              = module.vpc.private_subnets[0]
-  django_app_github_repo = var.django_app_github_repo
 
   aws_private_storage_bucket_name = module.s3_cloudfront.private_bucket_name
   aws_public_storage_bucket_name  = module.s3_cloudfront.public_bucket_name
@@ -240,18 +236,4 @@ resource "aws_ssm_document" "django_update" {
       }
     ]
   })
-}
-
-# 12. VPN
-module "vpn" {
-  source = "./modules/vpn"
-
-  project_name           = var.project_name
-  tags                   = var.tags
-  server_certificate_arn = module.acm.alb_certificate_arn 
-  client_cidr_block      = var.vpn_cidr
-  vpc_cidr_block         = module.vpc.vpc_cidr_block
-  private_subnet_ids     = module.vpc.private_subnets
-
-  depends_on = [module.vpc]
 }

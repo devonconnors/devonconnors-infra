@@ -44,8 +44,7 @@ resource "aws_iam_policy" "secrets_manager_access" {
           "secretsmanager:DescribeSecret"
         ]
         Resource = [
-          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:prod",
-          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}-*"
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:django-*",
         ]
       }
     ]
@@ -94,6 +93,7 @@ resource "aws_launch_template" "app" {
     AWS_PUBLIC_STORAGE_BUCKET_NAME  = var.aws_public_storage_bucket_name
     AWS_PRIVATE_STORAGE_BUCKET_NAME = var.aws_private_storage_bucket_name
     AWS_CLOUDFRONT_DOMAIN         = var.aws_cloudfront_domain
+    DUMMY_FORCE_REFRESH = "2026-01-04" # Force an update
   }))
 
   tag_specifications {
@@ -188,67 +188,45 @@ resource "aws_cloudwatch_metric_alarm" "low_cpu" {
   }
 }
 
-# GitHub OIDC (for CI/CD deploy role)
-resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
-}
-
-resource "aws_iam_role" "github_actions" {
-  name = "${var.project_name}-github-actions-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
-      Action    = "sts:AssumeRoleWithWebIdentity"
-      Condition = {
-        StringLike = { "token.actions.githubusercontent.com:sub" = "repo:${var.django_app_github_repo}:*" }
-      }
-    }]
-  })
-
-  tags = var.tags
-}
-
-resource "aws_iam_role_policy_attachment" "github_deploy" {
-  role       = aws_iam_role.github_actions.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"  # Narrow this later
-}
-
-# Reference the existing secret (created manually in console)
-data "aws_secretsmanager_secret" "django_ssh_key" {
-  name = "django-deploy-key"  # Change to your exact secret name
-}
-
-data "aws_secretsmanager_secret_version" "django_ssh_key_version" {
-  secret_id = data.aws_secretsmanager_secret.django_ssh_key.id
-}
-
-# IAM policy to allow EC2 role to read this secret
-resource "aws_iam_policy" "secrets_django_ssh_access" {
-  name        = "${var.project_name}-secrets-django-ssh"
-  description = "Allow EC2 instances to read Django SSH private key from Secrets Manager"
+# S3 access policy for static & media buckets
+resource "aws_iam_policy" "s3_static_media_access" {
+  name        = "${var.project_name}-ec2-s3-static-media"
+  description = "Allow EC2 to read/write static and media files in S3 buckets"
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = [
-          "secretsmanager:GetSecretValue",
-          "secretsmanager:DescribeSecret"
+        Sid    = "AllowBucketOperations"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
         ]
-        Resource = data.aws_secretsmanager_secret.django_ssh_key.arn
+        Resource = [
+          "arn:aws:s3:::${var.aws_public_storage_bucket_name}",
+          "arn:aws:s3:::${var.aws_private_storage_bucket_name}"
+        ]
+      },
+      {
+        Sid    = "AllowObjectOperations"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.aws_public_storage_bucket_name}/*",
+          "arn:aws:s3:::${var.aws_private_storage_bucket_name}/*"
+        ]
       }
     ]
   })
 }
 
-# Attach to your EC2 app role
-resource "aws_iam_role_policy_attachment" "app_secrets_ssh_access" {
+# Attach the S3 policy to the EC2 role
+resource "aws_iam_role_policy_attachment" "attach_s3_access" {
   role       = aws_iam_role.app.name
-  policy_arn = aws_iam_policy.secrets_django_ssh_access.arn
+  policy_arn = aws_iam_policy.s3_static_media_access.arn
 }

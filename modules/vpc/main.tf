@@ -1,13 +1,20 @@
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "5.9.0"  # Latest stable as of Dec 2025 - check registry for newer if desired
+  version = "5.9.0"  # or your current version
 
   name = "${var.project_name}-vpc"
   cidr = var.vpc_cidr
 
   azs             = data.aws_availability_zones.available.names
-  public_subnets  = [cidrsubnet(var.vpc_cidr, 8, 1), cidrsubnet(var.vpc_cidr, 8, 2), cidrsubnet(var.vpc_cidr, 8, 3)]   # 10.0.1.0/24 etc.
-  private_subnets = [cidrsubnet(var.vpc_cidr, 8, 101), cidrsubnet(var.vpc_cidr, 8, 102), cidrsubnet(var.vpc_cidr, 8, 103)] # 10.0.101.0/24 etc.
+  public_subnets  = [cidrsubnet(var.vpc_cidr, 8, 1), cidrsubnet(var.vpc_cidr, 8, 2), cidrsubnet(var.vpc_cidr, 8, 3)]
+  private_subnets = [cidrsubnet(var.vpc_cidr, 8, 101), cidrsubnet(var.vpc_cidr, 8, 102), cidrsubnet(var.vpc_cidr, 8, 103)]
+
+  # Enable auto-assign public IP on public subnets (this is what you need)
+  map_public_ip_on_launch = var.map_public_ip_on_launch  # ← Pass the variable here
 
   public_subnet_tags = {
     "SubnetType" = "Public"
@@ -17,7 +24,7 @@ module "vpc" {
     "SubnetType" = "Private"
   }
 
-  enable_nat_gateway     = false  # We're using fck-nat instead
+  enable_nat_gateway     = false
   single_nat_gateway     = false
   one_nat_gateway_per_az = false
 
@@ -27,8 +34,4 @@ module "vpc" {
   tags = merge(var.tags, {
     Name = "${var.project_name}-vpc"
   })
-}
-
-data "aws_availability_zones" "available" {
-  state = "available"
 }

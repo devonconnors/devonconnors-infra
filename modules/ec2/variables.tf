@@ -50,11 +50,6 @@ variable "aws_region" {
   type        = string
 }
 
-variable "django_app_github_repo" {
-  description = "GitHub repo for OIDC (e.g. username/repo)"
-  type        = string
-}
-
 variable "domain_name" {
   description = "Primary domain name (e.g., devonconnors.co.uk)"
   type        = string

@@ -5,7 +5,6 @@ environment = "prod"                          # Deployment environment (dev/stag
 project_name       = "my-django-app"            # Used for naming resources
 domain_name        = "mydjangoapp.co.uk"        # Your custom domain
 ecr_repository_name = "mydjango-ecr-repo"       # Your ECR repository name
-django_app_github_repo = ""                     # The location of your Django repository
 ssh_allowed_cidr = ""              # Your I.P. address for access to the security group
 vpc_cidr = "10.0.0.0/16"    # CIDR range to use for VPC
 

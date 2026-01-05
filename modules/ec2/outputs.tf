@@ -12,11 +12,6 @@ output "launch_template_latest_version" {
   value = aws_launch_template.app.latest_version
 }
 
-output "github_actions_role_arn" {
-  description = "ARN of the GitHub Actions deploy role"
-  value       = aws_iam_role.github_actions.arn
-}
-
 output "app_role_arn" {
   description = "ARN of the EC2 instance role"
   value       = aws_iam_role.app.arn

@@ -103,11 +103,6 @@ variable "tags" {
   type        = map(string)
 }
 
-variable "django_app_github_repo" {
-  description = "GitHub repository for OIDC"
-  type        = string
-}
-
 variable "rds_publicly_accessible" {
   description = "Allow public access to connect to RDS (for staging)"
   type        = bool

@@ -24,3 +24,9 @@ variable "tags" {
   description = "Common tags to apply"
   type        = map(string)
 }
+
+variable "map_public_ip_on_launch" {
+  description = "Whether to auto-assign public IP addresses to instances launched in public subnets"
+  type        = bool
+  default     = false  # Default to false for security, override in root
+}

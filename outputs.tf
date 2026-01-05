@@ -53,26 +53,6 @@ output "launch_template_id" {
   value = module.ec2.launch_template_id
 }
 
-output "ci_cd_instructions" {
-  description = "How to set up automated deployment from your Django repo"
-  value       = <<EOT
-CI/CD Setup Instructions:
-
-1. In GitHub (your Django repo) → Settings → Secrets and variables → Actions:
-   - Add Variables (not secrets):
-     AWS_REGION = ${var.aws_region}
-
-   - Add Secrets:
-     AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY (from IAM user with ECR + SSM permissions)
-
-2. Add .github/workflows/deploy.yml to your Django repo (use the workflow I provided earlier).
-
-3. Push to main → automatic deploy!
-
-Use SSM Session Manager (no SSH needed) for secure remote commands.
-EOT
-}
-
 output "next_steps" {
   value = <<EOT
 To access the instance via SSM (no SSH key needed):
