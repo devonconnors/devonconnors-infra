@@ -93,13 +93,13 @@ resource "aws_launch_template" "app" {
     AWS_PUBLIC_STORAGE_BUCKET_NAME  = var.aws_public_storage_bucket_name
     AWS_PRIVATE_STORAGE_BUCKET_NAME = var.aws_private_storage_bucket_name
     AWS_CLOUDFRONT_DOMAIN         = var.aws_cloudfront_domain
-    DUMMY_FORCE_REFRESH = "2026-01-05-1" # Force an update
+    DUMMY_FORCE_REFRESH = "2026-01-05-2" # Force an update
   }))
 
-  tag_specifications {
-    resource_type = "instance"
-    tags          = merge(var.tags, { Name = "${var.project_name}-app-instance" })
-  }
+tag_specifications {
+  resource_type = "instance"
+  tags          = merge(var.tags, { Name = "${var.project_name}-app-instance", DummyTag = "v2" })  # ← Add DummyTag or change value
+}
 
   lifecycle {
     create_before_destroy = true
@@ -118,7 +118,7 @@ resource "aws_autoscaling_group" "app" {
 
   launch_template {
     id      = aws_launch_template.app.id
-    version = "$Latest"
+    version = aws_launch_template.app.latest_version
   }
 
   # Tags for the ASG itself (not propagated to instances)
@@ -148,7 +148,7 @@ resource "aws_autoscaling_group" "app" {
       max_healthy_percentage = 110
     }
 
-    triggers = ["launch_template"]   # <--- THIS IS THE KEY LINE ADDED
+    triggers = ["launch_template"]
   }
 }
 
