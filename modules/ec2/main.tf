@@ -93,12 +93,12 @@ resource "aws_launch_template" "app" {
     AWS_PUBLIC_STORAGE_BUCKET_NAME  = var.aws_public_storage_bucket_name
     AWS_PRIVATE_STORAGE_BUCKET_NAME = var.aws_private_storage_bucket_name
     AWS_CLOUDFRONT_DOMAIN         = var.aws_cloudfront_domain
-    DUMMY_FORCE_REFRESH = "2026-01-05-2" # Force an update
+    DUMMY_FORCE_REFRESH = "2026-01-05-4" # Force an update
   }))
 
 tag_specifications {
   resource_type = "instance"
-  tags          = merge(var.tags, { Name = "${var.project_name}-app-instance", DummyTag = "v2" })  # ← Add DummyTag or change value
+  tags          = merge(var.tags, { Name = "${var.project_name}-app-instance", DummyTag = "v4" })  # Force an update
 }
 
   lifecycle {

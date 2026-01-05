@@ -209,7 +209,7 @@ module "route53_aliases" {
 module "secrets" {
   source = "./modules/secrets"
 
-  db_endpoint  = module.rds.endpoint
+  db_endpoint  = replace(module.rds.endpoint, ":5432", "")
   db_username  = var.db_username
   db_password  = module.rds.password
   db_name      = var.db_name

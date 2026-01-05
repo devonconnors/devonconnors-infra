@@ -7,6 +7,10 @@ resource "random_password" "master" {
   min_upper        = 1
   min_numeric      = 1
   min_special      = 1
+
+  keepers = {
+    force_reset = "2026-01-05-v2" # Force new password
+  }
 }
 
 # DB Subnet Group (private subnets)
@@ -71,6 +75,14 @@ resource "aws_db_parameter_group" "django" {
   parameter {
     name  = "timezone"
     value = "UTC"
+  }
+
+  # IMPORTANT: Disable forced SSL so internal VPC connections don't require encryption
+  # This prevents "no pg_hba.conf entry ... no encryption" errors
+  parameter {
+    name         = "rds.force_ssl"
+    value        = "0"
+    apply_method = "immediate"  # Applies dynamically without reboot in most cases
   }
 
   # Add more Django tweaks later if needed (e.g., max_connections)
