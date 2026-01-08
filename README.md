@@ -172,3 +172,27 @@ text</DOCUMENT>
 
 
 set up SSH key pair for EC2 instance to connect to private repo for continuous deployment
+
+
+
+
+
+
+
+    # Pull the latest image from ECR
+    aws ssm start-session --target i-095441f49ce70afe3 --region eu-west-2
+    sudo su - ec2-user
+    aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 588738597496.dkr.ecr.eu-west-2.amazonaws.com
+    cd app
+    docker compose pull
+
+    # Restart everything (pulls latest if changed)
+    docker compose down
+    docker compose up -d
+
+    # Watch logs to confirm no errors and DB connect success
+    docker compose logs -f
+
+
+
+    docker compose pull && docker compose down && docker compose up -d && docker compose logs -f

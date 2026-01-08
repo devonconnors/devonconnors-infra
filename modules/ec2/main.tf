@@ -84,6 +84,7 @@ resource "aws_launch_template" "app" {
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
     ECR_REPO_URL                  = var.ecr_repo_url
     AWS_REGION                    = var.aws_region
+    ALLOWED_HOSTS             = join(",", [var.domain_name, "www.${var.domain_name}"])
     ALLOWED_CIDR_NETS             = join(",", var.allowed_cidr_nets)
     CSRF_TRUSTED_ORIGINS          = join(",", [for host in [var.domain_name, "www.${var.domain_name}", "static.${var.domain_name}"] : "https://${host}"])
     APP_NAME                      = var.project_name
@@ -93,13 +94,13 @@ resource "aws_launch_template" "app" {
     AWS_PUBLIC_STORAGE_BUCKET_NAME  = var.aws_public_storage_bucket_name
     AWS_PRIVATE_STORAGE_BUCKET_NAME = var.aws_private_storage_bucket_name
     AWS_CLOUDFRONT_DOMAIN         = var.aws_cloudfront_domain
-    DUMMY_FORCE_REFRESH = "2026-01-05-4" # Force an update
+    DUMMY_FORCE_REFRESH = "2026-01-05-5" # Force an update
   }))
 
-tag_specifications {
-  resource_type = "instance"
-  tags          = merge(var.tags, { Name = "${var.project_name}-app-instance", DummyTag = "v4" })  # Force an update
-}
+  tag_specifications {
+    resource_type = "instance"
+    tags          = merge(var.tags, { Name = "${var.project_name}-app-instance", DummyTag = "v5" })  # Force an update
+  }
 
   lifecycle {
     create_before_destroy = true
@@ -137,18 +138,6 @@ resource "aws_autoscaling_group" "app" {
       value               = tag.value
       propagate_at_launch = true
     }
-  }
-
-  instance_refresh {
-    strategy = "Rolling"
-
-    preferences {
-      instance_warmup        = 300
-      min_healthy_percentage = 90
-      max_healthy_percentage = 110
-    }
-
-    triggers = ["launch_template"]
   }
 }
 

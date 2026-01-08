@@ -49,3 +49,16 @@ resource "aws_route53_record" "www_ipv6" {
     evaluate_target_health = true
   }
 }
+
+# Alias for static subdomain -> CloudFront
+resource "aws_route53_record" "static" {
+  zone_id = var.zone_id
+  name    = "static.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = var.cloudfront_domain
+    zone_id                = "Z2FDTNDATAQYW2"
+    evaluate_target_health = false
+  }
+}

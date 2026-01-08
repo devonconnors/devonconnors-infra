@@ -75,7 +75,7 @@ module "ec2" {
 
   aws_private_storage_bucket_name = module.s3_cloudfront.private_bucket_name
   aws_public_storage_bucket_name  = module.s3_cloudfront.public_bucket_name
-  aws_cloudfront_domain           = var.domain_name
+  aws_cloudfront_domain           = "static.${var.domain_name}"
   aws_region                      = var.aws_region
 
   ecr_repo_url = data.aws_ecr_repository.django.repository_url
@@ -197,6 +197,7 @@ module "route53_aliases" {
 
   zone_id           = module.route53_zone.zone_id
   domain_name       = var.domain_name
+  cloudfront_domain = module.s3_cloudfront.cloudfront_domain_name
   alb_dns_name      = module.alb.dns_name
   alb_zone_id       = module.alb.zone_id
 

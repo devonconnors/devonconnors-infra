@@ -14,9 +14,9 @@ variable "ssh_allowed_cidr" {
 }
 
 variable "app_port" {
-  description = "Port your Django container listens on (Gunicorn)"
+  description = "Port your EC2 container listens on"
   type        = number
-  default     = 8000
+  default     = 80
 }
 
 variable "tags" {

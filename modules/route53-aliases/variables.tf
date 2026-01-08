@@ -22,3 +22,8 @@ variable "alb_zone_id" {
   description = "Canonical hosted zone ID for the ALB"
   type        = string
 }
+
+variable "cloudfront_domain" {
+  description = "Cloudfront domain for static serving"
+  type        = string
+}
