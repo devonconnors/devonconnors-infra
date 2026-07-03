@@ -8,11 +8,6 @@ variable "domain_name" {
   type        = string
 }
 
-variable "tags" {
-  description = "Tags to apply"
-  type        = map(string)
-}
-
 variable "alb_dns_name" {
   description = "DNS name of the ALB (e.g. dualstack....elb.amazonaws.com)"
   type        = string

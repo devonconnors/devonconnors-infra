@@ -3,6 +3,16 @@ variable "project_name" {
   type        = string
 }
 
+variable "pause_infra" {
+  description = "If true, minimizes infrastructure costs by preparing relevant modules for being indefinitely paused"
+  type        = bool
+}
+
+variable "restore_from_snapshot" {
+  description = "If true, RDS instance is restored from the specified snapshot"
+  type        = bool
+}
+
 variable "environment" {
   description = "Deployment environment (dev/staging/prod)"
   type        = string
@@ -98,11 +108,6 @@ variable "enable_multi_az" {
   type        = bool
 }
 
-variable "tags" {
-  description = "Common tags to apply to all resources"
-  type        = map(string)
-}
-
 variable "rds_publicly_accessible" {
   description = "Allow public access to connect to RDS (for staging)"
   type        = bool
@@ -115,6 +120,6 @@ variable "AWS_DEFAULT_REGION" {
 }
 
 variable "AWS_SECRET_ACCESS_KEY" {
-  type = string
+  type      = string
   sensitive = true
 }

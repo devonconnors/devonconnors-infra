@@ -35,8 +35,3 @@ variable "project_name" {
   description = "Project name for naming and tagging"
   type        = string
 }
-
-variable "tags" {
-  description = "Common tags"
-  type        = map(string)
-}

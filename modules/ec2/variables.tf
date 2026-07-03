@@ -2,8 +2,14 @@ variable "project_name" {
   type = string
 }
 
-variable "tags" {
-  type = map(string)
+variable "pause_infra" {
+  description = "If true, minimizes infrastructure costs by preparing relevant modules for being indefinitely paused"
+  type        = bool
+}
+
+variable "account_id" {
+  description = "AWS Account ID"
+  type        = string
 }
 
 variable "ami_id" {
@@ -41,7 +47,7 @@ variable "aws_public_storage_bucket_name" {
 }
 
 variable "aws_cloudfront_domain" {
-  description = "CloudFront domain (e.g., static.devonconnors.co.uk)"
+  description = "CloudFront domain (e.g., static.{domain})"
   type        = string
 }
 
@@ -51,7 +57,7 @@ variable "aws_region" {
 }
 
 variable "domain_name" {
-  description = "Primary domain name (e.g., devonconnors.co.uk)"
+  description = "Primary domain name"
   type        = string
 }
 

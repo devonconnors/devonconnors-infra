@@ -4,10 +4,10 @@ resource "aws_acm_certificate" "alb" {
   subject_alternative_names = concat(var.alternative_names, ["static.${var.domain_name}"])
   validation_method         = "DNS"
 
-  tags = merge(var.tags, {
+  tags = {
     Name = "alb-cert-${var.domain_name}"
     Use  = "ALB HTTPS"
-  })
+  }
 
   lifecycle {
     create_before_destroy = true
@@ -31,10 +31,10 @@ resource "aws_acm_certificate" "cloudfront" {
   subject_alternative_names = concat(var.alternative_names, ["static.${var.domain_name}"])
   validation_method         = "DNS"
 
-  tags = merge(var.tags, {
+  tags = {
     Name = "cloudfront-cert-${var.domain_name}"
     Use  = "CloudFront"
-  })
+  }
 
   lifecycle {
     create_before_destroy = true

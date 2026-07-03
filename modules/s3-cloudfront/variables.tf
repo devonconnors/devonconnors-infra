@@ -1,5 +1,5 @@
 variable "domain_name" {
-  description = "Custom domain for CloudFront (e.g., devonconnors.co.uk)"
+  description = "Custom domain for CloudFront"
   type        = string
 }
 
@@ -12,11 +12,6 @@ variable "certificate_arn" {
 variable "project_name" {
   description = "Project name for naming/tagging"
   type        = string
-}
-
-variable "tags" {
-  description = "Common tags"
-  type        = map(string)
 }
 
 variable "app_role_arn" {

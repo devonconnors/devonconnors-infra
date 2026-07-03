@@ -8,9 +8,3 @@ variable "alternative_names" {
   type        = list(string)
   default     = []
 }
-
-variable "tags" {
-  description = "Tags to apply to certificates"
-  type        = map(string)
-  default     = {}
-}

@@ -9,7 +9,7 @@ variable "db_security_group_id" {
 }
 
 variable "instance_class" {
-  description = "RDS instance class (db.t4g.small recommended)"
+  description = "RDS instance class (db.t4g.medium recommended)"
   type        = string
 }
 
@@ -40,10 +40,14 @@ variable "project_name" {
   type        = string
 }
 
-variable "tags" {
-  description = "Common tags"
-  type        = map(string)
-  default     = {}
+variable "pause_infra" {
+  description = "If true, minimizes infrastructure costs by preparing relevant modules for being indefinitely paused"
+  type        = bool
+}
+
+variable "restore_from_snapshot" {
+  description = "If true, RDS instance is restored from the specified snapshot"
+  type        = bool
 }
 
 variable "backup_retention_period" {

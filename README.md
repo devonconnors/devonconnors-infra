@@ -84,7 +84,7 @@ domain_name       = "clientdomain.co.uk"
 # Optional overrides
 app_instance_type = "t4g.medium"
 nat_instance_type = "t4g.nano"
-db_instance_class = "db.t4g.small"
+db_instance_class = "db.t4g.nano"
 ecr_repository_name = "clientname-ecr-repo"  # ECR name
 # Existing resources for import/reuse
 existing_vpc_id     = "vpc-xxxxxxxx"  # If reusing
@@ -168,31 +168,53 @@ text</DOCUMENT>
 
 
 
+# Updating Web Application Codebase
+- This can all be done via AWS CLI, just identify an EC2 instance ID and secure shell into it (replacing `instance_id` and `account_id` with your specific values)
+  ```bash
+  aws configure
+  aws ssm start-session --target {instance_id} --region eu-west-2
+  sudo su - ec2-user
+  aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin {account_id}.dkr.ecr.eu-west-2.amazonaws.com
+  cd app
+  ```
+  ```bash
+  aws configure
+  aws ssm start-session --target i-0cfb0568d03ed8770 --region eu-west-2
+  sudo su - ec2-user
+  aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 588738597496.dkr.ecr.eu-west-2.amazonaws.com
+  cd app
+  ```
+- Then pull the latest docker image and restart the containers:
+  ```bash
+  docker compose pull && docker compose down && docker compose up -d && docker compose logs -f
+  ```
+- To shell into the webserver container within the web application:
+  ```bash
+  docker exec -it app-django-1 sh
+  ```
 
+# Pausing & Unpausing Infrastructure
+Only a handful of pieces of infrastructure contribute to the vast majority of cost, that is:
+- EC2 instances that enable the web application (approx 35% of overall cost)
+- RDS instance that supports the web application (approx 35% of overall cost)
+- ALB instance that auto-scales the web application when needed (approx 25% of overall cost)
 
+## Temporarily Pausing Infrastructure/Project
+- Set `pause_infra = true`
+- Run `terraform apply`, it will:
+  - Destroy the Nat Gateway (EC2)
+  - Destroy ALB instances and security groups
+  - Alter the webserver's ASG to use 0 instances
+  - Enable deletion on the RDS instance
+- Then finally run `terraform destroy -target=module.rds` to delete the RDS instance
+- Runnings costs will then be < £5 per month
 
-set up SSH key pair for EC2 instance to connect to private repo for continuous deployment
-
-
-
-
-
-
-
-    # Pull the latest image from ECR
-    aws ssm start-session --target i-095441f49ce70afe3 --region eu-west-2
-    sudo su - ec2-user
-    aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 588738597496.dkr.ecr.eu-west-2.amazonaws.com
-    cd app
-    docker compose pull
-
-    # Restart everything (pulls latest if changed)
-    docker compose down
-    docker compose up -d
-
-    # Watch logs to confirm no errors and DB connect success
-    docker compose logs -f
-
-
-
-    docker compose pull && docker compose down && docker compose up -d && docker compose logs -f
+## Unpausing Infrastructure/Project
+- Set `pause_infra = false` and `restore_from_snapshot = true`
+- Run `terraform apply`, it will:
+  - Recreate the Nat Gateway (EC2)
+  - Recreate the ALB instance and security group and configure them with the webserver
+  - Alter the webserver's ASG to use 1-3 instances (so it will launch an instance and serve the application)
+  - Create an RDS instance and will restore it to the snapshot that was taken on deletion when the infrastructure was paused
+- Now the web application is back up and running with normal running costs
+- Lastly, change back to `restore_from_snapshot = false` to ensure the RDS instance is not restored again on the next use of `terraform apply`

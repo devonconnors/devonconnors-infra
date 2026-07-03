@@ -5,7 +5,7 @@ output "website_url" {
 
 output "alb_dns_name" {
   description = "ALB DNS name (use for testing before DNS propagation)"
-  value       = module.alb.dns_name
+  value       = try(module.alb[0].dns_name, null)
 }
 
 output "cloudfront_domain" {
@@ -26,12 +26,12 @@ output "rds_endpoint" {
 
 output "nat_instance_arn" {
   description = "ARN of the NAT instance"
-  value       = module.nat.instance_arn
+  value       = try(module.nat[0].instance_arn, null)
 }
 
 output "nat_public_ip" {
   description = "Public IP of the NAT instance"
-  value       = module.nat.instance_public_ip
+  value       = try(module.nat[0].instance_public_ip, null)
 }
 
 output "asg_name" {

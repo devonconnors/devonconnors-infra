@@ -1,8 +1,10 @@
 # ALB Security Group - allow HTTP/HTTPS from anywhere
 resource "aws_security_group" "alb" {
-  name        = "${var.project_name}-alb-sg"
-  description = "Allow inbound HTTP/HTTPS to ALB"
-  vpc_id      = var.vpc_id
+  count                  = var.pause_infra ? 0 : 1
+  name                   = "${var.project_name}-alb-sg"
+  description            = "Allow inbound HTTP/HTTPS to ALB"
+  vpc_id                 = var.vpc_id
+  revoke_rules_on_delete = true
 
   ingress {
     description = "HTTP from anywhere"
@@ -28,9 +30,9 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(var.tags, {
+  tags = {
     Name = "${var.project_name}-alb-sg"
-  })
+  }
 }
 
 # App EC2 Security Group - allow traffic only from ALB + optional SSH
@@ -44,7 +46,7 @@ resource "aws_security_group" "app" {
     from_port       = var.app_port
     to_port         = var.app_port
     protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
+    security_groups = var.pause_infra ? [] : [aws_security_group.alb[0].id]
   }
 
   egress {
@@ -55,9 +57,9 @@ resource "aws_security_group" "app" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(var.tags, {
+  tags = {
     Name = "${var.project_name}-app-sg"
-  })
+  }
 }
 
 # RDS Security Group - allow PostgreSQL only from app instance
@@ -74,14 +76,6 @@ resource "aws_security_group" "db" {
     security_groups = [aws_security_group.app.id]
   }
 
-  ingress {
-    description     = "PostgreSQL from local (staging)"
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks     = var.rds_publicly_accessible ? [var.ssh_allowed_cidr] : []
-  }
-
   egress {
     description = "Allow outbound (for updates, etc.)"
     from_port   = 0
@@ -90,9 +84,9 @@ resource "aws_security_group" "db" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(var.tags, {
+  tags = {
     Name = "${var.project_name}-db-sg"
-  })
+  }
 }
 
 # NAT Instance Security Group - outbound only + optional SSH
@@ -117,7 +111,7 @@ resource "aws_security_group" "nat" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(var.tags, {
+  tags = {
     Name = "${var.project_name}-nat-sg"
-  })
+  }
 }

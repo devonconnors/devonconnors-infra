@@ -1,26 +1,25 @@
 # Copy this to terraform.tfvars and fill in your real values
 # Never commit the real file!
 
-environment = "prod"                          # Deployment environment (dev/staging/prod)
-project_name       = "my-django-app"            # Used for naming resources
-domain_name        = "mydjangoapp.co.uk"        # Your custom domain
-ecr_repository_name = "mydjango-ecr-repo"       # Your ECR repository name
-ssh_allowed_cidr = ""              # Your I.P. address for access to the security group
-vpc_cidr = "10.0.0.0/16"    # CIDR range to use for VPC
+pause_infra           = false               # Pauses expensive infrastructure if not needed temporarily
+restore_from_snapshot = false               # If true, tells the RDS instance to restore from the snapshot
 
-aws_region = "eu-west-2"
-app_instance_type  = "t4g.medium"         # Since Django shares resources with Celery & Redis, it needs a decent instance size
-nat_instance_type  = "t4g.nano"
-db_instance_class  = "db.t4g.nano"
-db_allocated_storage = 20
-backup_retention_period = 7
-backup_window = "03:00-04:00"
-db_name            = "proddb"
-db_username        = "dbadmin"
-enable_multi_az    = true
-ecr_scan_on_push     = true
-tags = {
-  ManagedBy = "terraform"
-  Project   = "django-ecommerce"
-  Owner     = "you@example.com"
-}
+environment         = "prod"                # Deployment environment (dev/staging/prod)
+project_name        = "my-django-app"       # Used for naming resources
+domain_name         = "mydjangoapp.co.uk"   # Your custom domain
+ecr_repository_name = "mydjango-ecr-repo"   # Your ECR repository name
+ssh_allowed_cidr    = ""                    # Your I.P. address for access to the security group
+vpc_cidr            = "10.0.0.0/16"         # CIDR range to use for VPC
+vpn_cidr            = "172.16.0.0/22"         # CIDR range to use for VPN
+
+aws_region                  = "eu-west-2"
+app_instance_type           = "t4g.medium"  # Since Django shares resources with Celery & Redis, it needs a decent instance size
+nat_instance_type           = "t4g.nano"
+db_instance_class           = "db.t4g.nano"
+db_allocated_storage        = 20
+backup_retention_period     = 7
+backup_window               = "03:00-04:00"
+db_name                     = "proddb"
+db_username                 = "dbadmin"
+enable_multi_az             = true
+ecr_scan_on_push            = true

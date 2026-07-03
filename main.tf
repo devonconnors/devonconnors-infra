@@ -8,6 +8,8 @@ terraform {
 }
 
 # Data sources for availability zones and AMI lookups
+data "aws_caller_identity" "current" {}
+
 data "aws_ssm_parameter" "amzn2_arm_ami" {
   name = "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2"
 }
@@ -16,33 +18,31 @@ data "aws_ecr_repository" "django" {
   name = var.ecr_repository_name
 }
 
-# === MODULE CALLS ===
-
 # 1. VPC with public/private subnets
 module "vpc" {
   source = "./modules/vpc"
 
-  project_name = var.project_name
-  vpc_cidr = var.vpc_cidr
+  project_name            = var.project_name
+  vpc_cidr                = var.vpc_cidr
   map_public_ip_on_launch = true
-  tags         = var.tags
 }
 
 # 2. Security groups
 module "security_groups" {
   source = "./modules/sg"
 
-  vpc_id           = module.vpc.vpc_id
-  project_name     = var.project_name
-  ssh_allowed_cidr = var.ssh_allowed_cidr
+  pause_infra             = var.pause_infra
+  vpc_id                  = module.vpc.vpc_id
+  project_name            = var.project_name
+  ssh_allowed_cidr        = var.ssh_allowed_cidr
   rds_publicly_accessible = var.rds_publicly_accessible
-  tags             = var.tags
 
   depends_on = [module.vpc]
 }
 
 # 3. fck-nat Instance (official module)
 module "nat" {
+  count = var.pause_infra == false ? 1 : 0
   source  = "RaJiska/fck-nat/aws"
   version = "1.4.0"
 
@@ -55,23 +55,22 @@ module "nat" {
   update_route_tables = true
   route_tables_ids    = { for i, rt_id in module.vpc.private_route_table_ids : "private-rt-${i}" => rt_id }
 
-  tags = var.tags
-
   depends_on = [module.vpc]
 }
 
-# 4. Django App EC2 instance (now using ASG/launch template)
+# 4. Django App EC2 instance (using ASG/launch template)
 module "ec2" {
   source = "./modules/ec2"
 
-  domain_name            = var.domain_name
-  allowed_cidr_nets      = [module.vpc.vpc_cidr_block]
-  project_name           = var.project_name
-  tags                   = var.tags
-  ami_id                 = data.aws_ssm_parameter.amzn2_arm_ami.value
-  instance_type          = var.app_instance_type
-  app_security_group_id  = module.security_groups.app_sg_id
-  subnet_id              = module.vpc.private_subnets[0]
+  pause_infra           = var.pause_infra
+  domain_name           = var.domain_name
+  allowed_cidr_nets     = [module.vpc.vpc_cidr_block]
+  project_name          = var.project_name
+  account_id            = data.aws_caller_identity.current.account_id
+  ami_id                = data.aws_ssm_parameter.amzn2_arm_ami.value
+  instance_type         = var.app_instance_type
+  app_security_group_id = module.security_groups.app_sg_id
+  subnet_id             = module.vpc.private_subnets[0]
 
   aws_private_storage_bucket_name = module.s3_cloudfront.private_bucket_name
   aws_public_storage_bucket_name  = module.s3_cloudfront.public_bucket_name
@@ -84,21 +83,22 @@ module "ec2" {
 
 # 5. Application Load Balancer + HTTPS
 module "alb" {
+  count = var.pause_infra == false ? 1 : 0
   source = "./modules/alb"
 
   vpc_id                 = module.vpc.vpc_id
   subnet_ids             = module.vpc.public_subnets
   project_name           = var.project_name
   domain_name            = var.domain_name
-  tags                   = var.tags
   autoscaling_group_name = module.ec2.asg_name
+  alb_security_group_id  = module.security_groups.alb_sg_id
 
   certificate_arn = module.acm.alb_certificate_arn
 
-  depends_on = [module.ec2, module.acm, module.vpc]
+  depends_on = [module.ec2, module.acm, module.vpc, module.security_groups]
 }
 
-# 6. ACM Certificate (EMAIL validation – manual confirmation required)
+# 6. ACM Certificate (manual confirmation required)
 module "acm" {
   source = "./modules/acm"
 
@@ -115,6 +115,8 @@ module "acm" {
 module "rds" {
   source = "./modules/rds"
 
+  pause_infra             = var.pause_infra
+  restore_from_snapshot   = var.restore_from_snapshot
   subnet_ids              = module.vpc.private_subnets
   db_security_group_id    = module.security_groups.db_sg_id
   db_name                 = var.db_name
@@ -123,7 +125,6 @@ module "rds" {
   allocated_storage       = var.db_allocated_storage
   multi_az                = var.enable_multi_az
   project_name            = var.project_name
-  tags                    = var.tags
   backup_retention_period = var.backup_retention_period
   backup_window           = var.backup_window
   publicly_accessible     = var.rds_publicly_accessible
@@ -139,7 +140,6 @@ module "s3_cloudfront" {
   certificate_arn = module.acm.cloudfront_certificate_arn
   project_name    = var.project_name
   app_role_arn    = module.ec2.app_role_arn
-  tags            = var.tags
 
   depends_on = [module.acm]
 }
@@ -155,15 +155,12 @@ module "ses" {
   domain_name    = var.domain_name
   hosted_zone_id = module.route53_zone.zone_id
 
-  tags = var.tags
-
   depends_on = [module.route53_zone]
 }
 
 # IAM user for SES SMTP credentials
 resource "aws_iam_user" "ses_smtp_user" {
   name = "${var.project_name}-ses-smtp"
-  tags = var.tags
 }
 
 resource "aws_iam_access_key" "ses_smtp" {
@@ -186,22 +183,20 @@ resource "aws_iam_user_policy" "ses_send" {
 
 # 10. Route 53
 module "route53_zone" {
-  source = "./modules/route53-zone"
+  source      = "./modules/route53-zone"
 
   domain_name = var.domain_name
-  tags        = var.tags
 }
 
 module "route53_aliases" {
+  count = var.pause_infra == false ? 1 : 0
   source = "./modules/route53-aliases"
 
   zone_id           = module.route53_zone.zone_id
   domain_name       = var.domain_name
   cloudfront_domain = module.s3_cloudfront.cloudfront_domain_name
-  alb_dns_name      = module.alb.dns_name
-  alb_zone_id       = module.alb.zone_id
-
-  tags = var.tags
+  alb_dns_name      = try(module.alb[0].dns_name, null)
+  alb_zone_id       = try(module.alb[0].zone_id, null)
 
   depends_on = [module.alb, module.route53_zone]
 }
@@ -217,13 +212,12 @@ module "secrets" {
   ses_username = aws_iam_access_key.ses_smtp.id
   ses_password = aws_iam_access_key.ses_smtp.secret
   project_name = var.project_name
-  tags         = var.tags
 
   depends_on = [module.rds]
 }
 
 resource "aws_ssm_document" "django_update" {
-  name          = "devonconnors-django-update"
+  name          = "django-update"
   document_type = "Command"
   content = jsonencode({
     schemaVersion = "2.2"

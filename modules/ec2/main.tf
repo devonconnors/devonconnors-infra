@@ -14,8 +14,6 @@ resource "aws_iam_role" "app" {
       }
     ]
   })
-
-  tags = var.tags
 }
 
 # Attach policies separately (replaces deprecated managed_policy_arns)
@@ -44,7 +42,7 @@ resource "aws_iam_policy" "secrets_manager_access" {
           "secretsmanager:DescribeSecret"
         ]
         Resource = [
-          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:django-*",
+          "arn:aws:secretsmanager:${var.aws_region}:${var.account_id}:secret:django-*",
         ]
       }
     ]
@@ -71,7 +69,7 @@ resource "aws_iam_instance_profile" "app" {
 
 # Launch Template for ASG instances
 resource "aws_launch_template" "app" {
-  name_prefix   = "${var.project_name}-lt-"
+  name_prefix   = "${var.project_name}-lt"
   image_id      = var.ami_id
   instance_type = var.instance_type
 
@@ -82,24 +80,25 @@ resource "aws_launch_template" "app" {
   }
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
-    ECR_REPO_URL                  = var.ecr_repo_url
-    AWS_REGION                    = var.aws_region
-    ALLOWED_HOSTS             = join(",", [var.domain_name, "www.${var.domain_name}"])
-    ALLOWED_CIDR_NETS             = join(",", var.allowed_cidr_nets)
-    CSRF_TRUSTED_ORIGINS          = join(",", [for host in [var.domain_name, "www.${var.domain_name}", "static.${var.domain_name}"] : "https://${host}"])
-    APP_NAME                      = var.project_name
-    CACHE_LOCATION                = "redis://redis:6379/1"
-    CELERY_BROKER                 = "redis://redis:6379/0"
-    CELERY_BACKEND                = "redis://redis:6379/0"
+    ECR_REPO_URL                    = var.ecr_repo_url
+    AWS_REGION                      = var.aws_region
+    ALLOWED_HOSTS                   = join(",", [var.domain_name, "www.${var.domain_name}"])
+    ALLOWED_CIDR_NETS               = join(",", var.allowed_cidr_nets)
+    CSRF_TRUSTED_ORIGINS            = join(",", [for host in [var.domain_name, "www.${var.domain_name}", "static.${var.domain_name}"] : "https://${host}"])
+    APP_NAME                        = var.project_name
+    CACHE_LOCATION                  = "redis://redis:6379/1"
+    CELERY_BROKER                   = "redis://redis:6379/0"
+    CELERY_BACKEND                  = "redis://redis:6379/0"
     AWS_PUBLIC_STORAGE_BUCKET_NAME  = var.aws_public_storage_bucket_name
     AWS_PRIVATE_STORAGE_BUCKET_NAME = var.aws_private_storage_bucket_name
-    AWS_CLOUDFRONT_DOMAIN         = var.aws_cloudfront_domain
-    DUMMY_FORCE_REFRESH = "2026-01-05-5" # Force an update
+    AWS_CLOUDFRONT_DOMAIN           = var.aws_cloudfront_domain
   }))
 
   tag_specifications {
     resource_type = "instance"
-    tags          = merge(var.tags, { Name = "${var.project_name}-app-instance", DummyTag = "v5" })  # Force an update
+    tags          = {
+      Name = "${var.project_name}-app"
+    }
   }
 
   lifecycle {
@@ -110,34 +109,36 @@ resource "aws_launch_template" "app" {
 # Auto Scaling Group
 resource "aws_autoscaling_group" "app" {
   name                = "${var.project_name}-asg"
-  min_size            = 1
-  max_size            = 3
-  desired_capacity    = 1
+  min_size            = var.pause_infra ? 0 : 1
+  max_size            = var.pause_infra ? 0 : 3
+  desired_capacity    = var.pause_infra ? 0 : 1
   health_check_type   = "ELB"
+  health_check_grace_period = 600
 
-  vpc_zone_identifier = [var.subnet_id]  # Private subnet preferred
+  vpc_zone_identifier = [var.subnet_id]
 
   launch_template {
     id      = aws_launch_template.app.id
-    version = aws_launch_template.app.latest_version
+    version = "$Default"
   }
 
-  # Tags for the ASG itself (not propagated to instances)
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 50
+      instance_warmup        = 600
+      skip_matching          = true
+    }
+  }
+
   tag {
     key                 = "Name"
     value               = "${var.project_name}-asg"
     propagate_at_launch = false
   }
 
-  # Tags propagated to launched instances
-  dynamic "tag" {
-    for_each = var.tags
-
-    content {
-      key                 = tag.key
-      value               = tag.value
-      propagate_at_launch = true
-    }
+  lifecycle {
+    create_before_destroy = true
   }
 }
 

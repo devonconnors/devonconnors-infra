@@ -6,10 +6,9 @@ resource "aws_s3_bucket" "private" {
     ignore_changes = [bucket]
   }
 
-  tags = merge(var.tags, {
-    Name        = "${var.project_name}-private-media"
-    Environment = "production"  # optional - add if you use env tags
-  })
+  tags = {
+    Name = "${var.project_name}-private-media"
+  }
 }
 
 resource "aws_s3_bucket_versioning" "private" {
@@ -23,6 +22,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "private" {
   bucket = aws_s3_bucket.private.id
 
   rule {
+    bucket_key_enabled       = false
+    blocked_encryption_types = ["SSE-C"]
+
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
     }
@@ -64,10 +66,9 @@ resource "aws_s3_bucket" "public" {
     ignore_changes = [bucket]
   }
 
-  tags = merge(var.tags, {
-    Name        = "${var.project_name}-public-static-media"
-    Environment = "production"  # optional - add if you use env tags
-  })
+  tags = {
+    Name = "${var.project_name}-public-static-media"
+  }
 }
 
 resource "aws_s3_bucket_versioning" "public" {
@@ -81,6 +82,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "public" {
   bucket = aws_s3_bucket.public.id
 
   rule {
+    bucket_key_enabled       = false
+    blocked_encryption_types = ["SSE-C"]
+
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
     }
@@ -119,7 +123,7 @@ resource "aws_cloudfront_distribution" "public" {
   default_root_object = "index.html"  # change if your entry point is different
 
   # IMPORTANT: Ensure your ACM cert covers ALL aliases here!
-  # e.g., add static.devonconnors.co.uk to SANs in ACM module!
+  # e.g., add static.{domain} to SANs in ACM module!
   aliases = ["static.${var.domain_name}", var.domain_name]
 
   default_cache_behavior {
@@ -161,10 +165,9 @@ resource "aws_cloudfront_distribution" "public" {
   # Optional: prevents accidental delete of distribution on terraform destroy
   # retain_on_delete = true
 
-  tags = merge(var.tags, {
-    Name        = "${var.project_name}-cloudfront-public"
-    Environment = "production"  # optional
-  })
+  tags = {
+    Name = "${var.project_name}-cloudfront-public"
+  }
 }
 
 # Bucket policy for public: Allow CloudFront to read + app role to read/write (for resized uploads)

@@ -2,9 +2,9 @@ resource "aws_secretsmanager_secret" "prod" {
   name                    = "django-prod-terraform"
   description             = "Consolidated secrets for ${var.project_name}"
   recovery_window_in_days = 30
-  tags = merge(var.tags, {
+  tags = {
     Name = "${var.project_name}-prod-secret" 
-  })
+  }
 }
 
 resource "aws_secretsmanager_secret_version" "prod" {
@@ -20,6 +20,8 @@ resource "aws_secretsmanager_secret_version" "prod" {
     SES_CREDENTIALS = jsonencode({
       username = var.ses_username
       password = var.ses_password
+      smtp_username = var.ses_username
+      smtp_password = null
     })
   })
 

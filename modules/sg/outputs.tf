@@ -1,6 +1,6 @@
 output "alb_sg_id" {
   description = "Security group ID for the ALB"
-  value       = aws_security_group.alb.id
+  value       = try(aws_security_group.alb[0].id, null)
 }
 
 output "app_sg_id" {

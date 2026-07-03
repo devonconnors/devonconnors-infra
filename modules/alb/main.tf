@@ -2,11 +2,9 @@ resource "aws_lb" "this" {
   name               = "${var.project_name}-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
+  security_groups    = [var.alb_security_group_id]
   subnets            = var.subnet_ids
   idle_timeout = 120
-
-  tags = var.tags
 }
 
 resource "aws_lb_target_group" "app" {
@@ -17,13 +15,11 @@ resource "aws_lb_target_group" "app" {
 
   health_check {
     path                = "/health/"
-    interval            = 30
+    interval            = 180
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 2
   }
-
-  tags = var.tags
 }
 
 # HTTP listener (always present)
@@ -33,8 +29,13 @@ resource "aws_lb_listener" "http" {
   protocol          = "HTTP"
 
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.app.arn
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
 }
 
@@ -46,63 +47,36 @@ resource "aws_lb_listener" "https" {
   certificate_arn   = var.certificate_arn
 
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.app.arn
-  }
-}
+    type = "fixed-response"
 
-# Optional: HTTP → HTTPS redirect (only if HTTPS listener exists)
-resource "aws_lb_listener_rule" "redirect_http_to_https" {
-  listener_arn = aws_lb_listener.http.arn
-
-  action {
-    type = "redirect"
-
-    redirect {
-      port        = "443"
-      protocol    = "HTTPS"
-      status_code = "HTTP_301"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Not Found"
+      status_code  = "404"
     }
   }
-
-  condition {
-    path_pattern {
-      values = ["*"]
-    }
-  }
-}
-
-# Security group for ALB
-resource "aws_security_group" "alb" {
-  name        = "${var.project_name}-alb-sg"
-  description = "Allow inbound HTTP/HTTPS to ALB"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = var.tags
 }
 
 resource "aws_autoscaling_attachment" "alb" {
   autoscaling_group_name = var.autoscaling_group_name
   lb_target_group_arn    = aws_lb_target_group.app.arn
+}
+
+resource "aws_lb_listener_rule" "allow_valid_host" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 1
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+
+  condition {
+    host_header {
+      values = [
+        var.domain_name,
+        "www.${var.domain_name}"
+      ]
+    }
+  }
 }

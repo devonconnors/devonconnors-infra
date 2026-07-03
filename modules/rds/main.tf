@@ -18,9 +18,9 @@ resource "aws_db_subnet_group" "this" {
   name       = "${var.project_name}-db-subnet-group"
   subnet_ids = var.subnet_ids
 
-  tags = merge(var.tags, {
+  tags = {
     Name = "${var.project_name}-db-subnet-group"
-  })
+  }
 }
 
 # RDS Instance
@@ -44,22 +44,23 @@ resource "aws_db_instance" "this" {
 
   multi_az                    = var.multi_az
   storage_encrypted           = true
-  storage_type                = "gp2"  # Or gp3 for better performance
+  storage_type                = "gp3"
 
   backup_retention_period     = var.backup_retention_period
   backup_window     = var.backup_window
   skip_final_snapshot         = false
   final_snapshot_identifier   = "${var.project_name}-db-final-snapshot"
-  deletion_protection         = true
+  snapshot_identifier         = var.restore_from_snapshot ? "${var.project_name}-db-final-snapshot" : null
+  deletion_protection         = var.pause_infra ? false : true
 
   auto_minor_version_upgrade  = true
   apply_immediately           = true
 
   parameter_group_name        = aws_db_parameter_group.django.id
 
-  tags = merge(var.tags, {
+  tags = {
     Name = "${var.project_name}-postgres"
-  })
+  }
 }
 
 # Custom Parameter Group (Django-friendly defaults)
@@ -67,25 +68,15 @@ resource "aws_db_parameter_group" "django" {
   name   = "${var.project_name}-django-pg"
   family = "postgres16"
 
-  parameter {
-    name  = "client_encoding"
-    value = "UTF8"
-  }
-
-  parameter {
-    name  = "timezone"
-    value = "UTC"
-  }
-
   # IMPORTANT: Disable forced SSL so internal VPC connections don't require encryption
   # This prevents "no pg_hba.conf entry ... no encryption" errors
   parameter {
     name         = "rds.force_ssl"
     value        = "0"
-    apply_method = "immediate"  # Applies dynamically without reboot in most cases
+    apply_method = "immediate"
   }
 
-  # Add more Django tweaks later if needed (e.g., max_connections)
-
-  tags = var.tags
+  lifecycle {
+    ignore_changes = [parameter]
+  }
 }

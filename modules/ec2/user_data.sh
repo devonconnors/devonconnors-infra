@@ -10,6 +10,16 @@ echo "User data started: $(date)"
 docker compose down --remove-orphans || true
 docker image prune -f || true
 
+# Configure sysctl parameters
+echo "Setting kernel sysctl parameters..."
+
+cat <<EOF | sudo tee /etc/sysctl.d/99-redis.conf
+vm.overcommit_memory = 1
+net.core.somaxconn = 1024
+EOF
+
+sudo sysctl --system
+
 # Install Docker if missing
 if ! command -v docker >/dev/null 2>&1; then
   echo "Installing Docker..."
@@ -80,7 +90,7 @@ services:
       - 80:8000
     healthcheck:
       test: ["CMD", "server_healthcheck.sh"]
-      interval: 10s
+      interval: 180s
       timeout: 3s
       retries: 5
       start_period: 30s
@@ -90,7 +100,7 @@ services:
     command: celery -A ${APP_NAME} worker -B -l INFO -P solo
     healthcheck:
       test: ["CMD", "celery", "-A", "${APP_NAME}", "inspect", "ping"]
-      interval: 10s
+      interval: 180s
       timeout: 10s
       retries: 5
       start_period: 30s
@@ -101,7 +111,7 @@ services:
       - 6379:6379
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 180s
       timeout: 5s
       retries: 50
       start_period: 10s
